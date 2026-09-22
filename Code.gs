@@ -21,11 +21,16 @@
  *                        จับคู่กับคอลัมน์ cid ในแผ่นงาน "พนักงานที่เข้าร่วม" ไม่ใช่คอลัมน์ Name แล้ว)
  *   "เกณฑ์"              columns: AD_size, จำนวนร้าน, บัตรโควตา, ผู้ใช้ใหม่เป้า, งบประมาณบาท
  *   "พนักงานที่เข้าร่วม"  columns: No., Name, cid
+ *   "Admin"              columns: label, password
+ *                        (รายชื่อรหัสผ่านที่ใช้เข้าหน้า admin.html ได้ — เพิ่ม/ลบแถวในนี้ได้เลย
+ *                        ไม่ต้องแก้โค้ด ตรวจสอบผ่าน ?mode=admin&password=... เท่านั้น ไม่มี endpoint
+ *                        ไหนคืนค่ารหัสผ่านกลับออกไปให้ client เห็น)
  */
 
 const SHEET_REGISTRATIONS = 'ผลการสมัคร';
 const SHEET_CRITERIA = 'เกณฑ์';
 const SHEET_MEMBERS = 'พนักงานที่เข้าร่วม';
+const SHEET_ADMIN = 'Admin';
 
 const CAMPAIGN = {
   pointsPerCard: 4,   // ทุก 4 คนที่แนะนำสำเร็จ = 1 บัตร
@@ -38,7 +43,11 @@ CAMPAIGN.maxReferralsPerPerson = CAMPAIGN.maxCardsPerPerson * CAMPAIGN.pointsPer
 function doGet(e) {
   try {
     const mode = (e.parameter.mode || '').trim();
-    if (mode === 'admin') return jsonOut_(buildAdminSummary());
+    if (mode === 'admin') {
+      const password = String(e.parameter.password || '');
+      if (!isValidAdminPassword_(password)) return jsonOut_({ error: 'UNAUTHORIZED' });
+      return jsonOut_(buildAdminSummary());
+    }
     if (mode === 'personal') {
       const cid = String(e.parameter.cid || '').replace(/\D/g, '');
       if (cid.length !== 13) return jsonOut_({ error: 'INVALID_CID' });
@@ -109,6 +118,13 @@ function loadAll_() {
   });
 
   return { registrations: registrations, brackets: brackets, members: members };
+}
+
+// ---------- ตรวจรหัสผ่านหน้า admin กับแผ่นงาน "Admin" ----------
+function isValidAdminPassword_(password) {
+  if (!password) return false;
+  const rows = readSheetAsObjects_(SHEET_ADMIN);
+  return rows.some(function (r) { return String(r['password'] || '') === password; });
 }
 
 function cardsEarnedFor_(count) {
