@@ -6,8 +6,9 @@
 <title>AD Mission – เช็คผลงานพนักงาน</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .hero.check { border-radius: 0 0 24px 24px; margin-bottom: -44px; padding-bottom: 56px; }
-  .id-card { padding: 20px; margin-bottom: 18px; }
+  .hero-wrap { position: relative; }
+  .hero.check { border-radius: 0 0 24px 24px; padding-bottom: 56px; }
+  .id-card { padding: 20px; margin: -44px 16px 18px; position: relative; z-index: 2; }
   .id-label { font-size: 12px; font-weight: 600; margin-bottom: 9px; color: #4A453E; }
   .id-form { display: flex; gap: 9px; flex-wrap: wrap; }
   .id-input {
@@ -40,16 +41,33 @@
   @media (max-width: 500px) { .pack-grid { grid-template-columns: repeat(2, 1fr); } }
   .redeem-row { padding: 18px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
   .hint { font-size: 11px; color: var(--muted-2); padding: 0 4px; margin-top: 6px; }
-  .check-content { max-width: 680px; margin: -40px auto 0; }
+  .check-content { max-width: 680px; margin: 0 auto; }
   .result-grid { display: flex; flex-direction: column; gap: 20px; }
 
   @media (min-width: 860px) {
     .page.page-narrow { max-width: 980px; }
-    .check-content { max-width: 980px; }
-    .hero.check { padding: 26px 40px 36px; margin-bottom: -30px; }
-    .id-card { display: flex; align-items: center; gap: 22px; padding: 16px 22px; }
-    .id-card .id-label { margin-bottom: 0; white-space: nowrap; }
-    .id-card .id-form { flex: 1; }
+    .check-content { max-width: 980px; margin-top: 24px; }
+
+    .hero-wrap { display: flex; align-items: stretch; }
+    .hero.check { flex: 1; border-radius: 24px 0 0 24px; padding: 26px 32px; }
+    .hero.check .hero-desc { display: none; }
+    .hero.check .hero-inner { display: flex; align-items: center; gap: 16px; }
+    .hero.check .hero-title { font-size: 19px !important; }
+
+    .id-card {
+      flex-shrink: 0; margin: 0; border-radius: 0 24px 24px 0;
+      background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
+      display: flex; align-items: center; gap: 16px; padding: 0 32px;
+    }
+    .id-card .id-label { margin-bottom: 0; white-space: nowrap; color: rgba(255,255,255,.85); }
+    .id-card .id-form { flex-wrap: nowrap; }
+    .id-card .id-input { border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.14); min-width: 0; width: 150px; }
+    .id-card .id-input input { color: #fff; }
+    .id-card .id-input input::placeholder { color: rgba(255,255,255,.6); }
+    .id-card .id-input svg { stroke: #fff; }
+    #checkBtn { background: rgba(0,0,0,.28); }
+    #checkBtn:hover { background: rgba(0,0,0,.4); }
+
     .result-grid {
       display: grid;
       grid-template-columns: 1.55fr 1fr;
@@ -70,19 +88,17 @@
 </head>
 <body>
 
-<div class="hero check">
-  <div class="hero-inner">
-    <div class="hero-badge">
-      <span class="logo">AD</span>
-      <span class="label">Kubota Care</span>
+<div class="hero-wrap">
+  <div class="hero check">
+    <div class="hero-inner">
+      <div class="hero-badge">
+        <span class="logo">AD</span>
+        <span class="label">Kubota Care</span>
+      </div>
+      <div class="hero-title" style="font-size:22px;">เช็คผลงานสะสมแต้มของคุณ</div>
+      <div class="hero-desc">กรอกเลขบัตรประชาชนของคุณ เพื่อดูว่าพาลูกค้าโหลดแอป Kubota Care สำเร็จไปแล้วกี่คน</div>
     </div>
-    <div class="hero-title" style="font-size:22px;">เช็คผลงานสะสมแต้มของคุณ</div>
-    <div class="hero-desc">กรอกเลขบัตรประชาชนของคุณ เพื่อดูว่าพาลูกค้าโหลดแอป Kubota Care สำเร็จไปแล้วกี่คน</div>
   </div>
-</div>
-
-<div class="page page-narrow">
-<div class="content check-content">
 
   <div class="card id-card">
     <div class="id-label">เลขบัตรประชาชน 13 หลัก</div>
@@ -97,6 +113,11 @@
       </button>
     </div>
   </div>
+
+</div>
+
+<div class="page page-narrow">
+<div class="content check-content">
 
   <div id="resultArea"></div>
 
