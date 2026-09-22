@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AD Mission – ภาพรวมแคมเปญ</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .kpi-value { display: flex; align-items: baseline; gap: 6px; }
+  .kpi-value .big { font-size: 22px; font-weight: 800; }
+  .kpi-value .small { font-size: 12px; color: var(--muted); }
+  .kpi-caption { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .trend-wrap { position: relative; height: 160px; padding-top: 4px; }
+  .trend-bars { display: flex; align-items: flex-end; gap: 4px; height: 100%; width: 100%; }
+  .trend-bar { flex: 1; border-radius: 5px 5px 0 0; min-height: 2px; }
+  .trend-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11.5px; color: var(--muted); margin-top: 14px; }
+  .trend-legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .bracket-row { margin-bottom: 16px; }
+  .bracket-row:last-child { margin-bottom: 0; }
+  .bracket-row .head { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px; }
+  .donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .donut { width: 130px; height: 130px; border-radius: 50%; flex-shrink: 0; position: relative; }
+  .donut .center { position: absolute; inset: 20px; background: #fff; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut-legend { display: flex; flex-direction: column; gap: 11px; flex: 1; min-width: 160px; }
+  .donut-legend .row { display: flex; align-items: center; gap: 8px; }
+  .donut-legend .swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .lb-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--track); }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-avatar { width: 34px; height: 34px; border-radius: 11px; background: var(--track); color: var(--muted); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .lb-avatar.top { background: var(--orange-tint); color: var(--orange); }
+  .lb-name { font-size: 13px; font-weight: 600; }
+  .lb-sub { font-size: 11.5px; color: var(--muted); }
+  .lb-count { font-size: 13px; font-weight: 700; width: 56px; text-align: right; flex-shrink: 0; }
+  .lb-count .unit { font-size: 10.5px; font-weight: 400; color: var(--muted); }
+  .filter-bar { display: flex; gap: 8px; padding: 12px 14px; overflow-x: auto; align-items: center; }
+  .filter-chip { padding: 7px 12px; border-radius: 9px; background: var(--bg); font-size: 11.5px; font-weight: 600; color: #4A453E; white-space: nowrap; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div>
+        <div class="hero-badge">
+          <span class="logo">AD</span>
+          <span class="label">AD Mission × Kubota Care</span>
+        </div>
+        <div class="hero-title">ภาพรวมแคมเปญแนะนำลูกค้าโหลดแอป</div>
+        <div class="hero-desc">ติดตามความคืบหน้างบประมาณ ยอดลงทะเบียน และการกระจายบัตรรางวัลของช่างทั่วทั้ง <span id="heroStoreCount"></span> ร้าน</div>
+      </div>
+      <div class="hero-sync" id="heroSync"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+<div class="content">
+
+  <div class="notice-banner" id="noticeBanner">
+    กำลังโหลดข้อมูลสดจากระบบ...
+  </div>
+
+  <div class="card filter-bar">
+    <div class="filter-chip">1 – 21 ก.ย. 2569</div>
+    <div class="filter-chip">ทุก Bracket</div>
+    <div class="filter-chip">ทุกร้าน</div>
+  </div>
+
+  <div style="height:16px;"></div>
+
+  <div class="grid-2 desktop-4" id="kpiRow"></div>
+
+  <div class="section-title" style="margin-top:20px;">ยอด Register รายวัน</div>
+  <div class="card" style="padding:20px;">
+    <div class="section-sub" id="trendSub" style="margin-top:0;"></div>
+    <div class="trend-wrap" id="trendChart"></div>
+    <div class="trend-legend">
+      <div><span class="dot" style="background:var(--orange);"></span>Register/วัน</div>
+      <div><span class="dot" style="background:var(--teal);"></span>เสาร์-อาทิตย์</div>
+    </div>
+  </div>
+
+  <div class="grid-2 desktop-split" style="margin-top:20px;">
+    <div class="card" style="padding:22px;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:3px;">งบ/โควตาบัตรตาม Bracket</div>
+      <div class="section-sub">แบ่งโควตาให้ทั่วถึงทุกขนาดร้าน — ไม่ใช้จัดอันดับ</div>
+      <div id="bracketBars"></div>
+    </div>
+
+    <div class="card" style="padding:22px;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:3px;">สถานะการเข้าร่วมของช่าง</div>
+      <div class="section-sub" id="donutSub"></div>
+      <div class="donut-wrap" id="donutWrap"></div>
+    </div>
+  </div>
+
+  <div class="section-title">ช่างผลงานดีที่สุด</div>
+  <div class="card" style="padding:22px;">
+    <div class="section-sub" style="margin-top:0;">เรียงตามยอดลูกค้าที่แนะนำสำเร็จสะสม — ไม่มีโบนัส Top performer ในกิจกรรมนี้</div>
+    <div id="leaderboard"></div>
+  </div>
+
+</div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  function pct(a, b) { return b > 0 ? Math.round((a / b) * 1000) / 10 : 0; }
+
+  init();
+
+  async function init() {
+    try {
+      const data = await fetchApi({ mode: 'admin' });
+      render(data);
+    } catch (err) {
+      document.getElementById('noticeBanner').outerHTML =
+        `<div class="card error-card" style="padding:16px 20px; margin-bottom:16px;">โหลดข้อมูลจากระบบไม่สำเร็จ (${err.message}) — ลองรีเฟรชหน้าอีกครั้ง หรือแจ้ง Dev ถ้ายังไม่หาย</div>`;
+      document.getElementById('kpiRow').innerHTML = '';
+    }
+  }
+
+  function render(data) {
+    const brackets = data.brackets.map(b => ({ ...b, range: BRACKET_RANGE_LABELS[b.size] || '' }));
+    const totalBudget = brackets.reduce((s, b) => s + b.budget, 0);
+    const totalUserTarget = brackets.reduce((s, b) => s + b.userTarget, 0);
+    const totalCardQuota = brackets.reduce((s, b) => s + b.cardQuota, 0);
+    const totalStores = brackets.reduce((s, b) => s + b.stores, 0);
+
+    document.getElementById('heroStoreCount').textContent = totalStores;
+    const generated = new Date(data.generatedAt);
+    const generatedLabel = generated.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+    document.getElementById('noticeBanner').outerHTML =
+      `<div class="notice-banner" id="noticeBanner">ข้อมูลบนหน้านี้ดึง<strong>สด</strong>จากระบบทุกครั้งที่โหลดหน้า (ผ่าน Google Apps Script ที่อ่านชีต "Kubota Care tracking" โดยตรง) — โหลดล่าสุด ${generatedLabel}</div>`;
+    document.getElementById('heroSync').innerHTML =
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg> sync ล่าสุด ' + generatedLabel;
+
+    renderKpis(data, totalBudget, totalUserTarget, totalCardQuota);
+    renderTrend(data.dailyTrend || []);
+    renderBrackets(brackets);
+    renderDonut(data);
+    renderLeaderboard(data.leaderboard);
+  }
+
+  // ---- KPI cards ----
+  function renderKpis(data, totalBudget, totalUserTarget, totalCardQuota) {
+    const kpis = [
+      {
+        icon: '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F05A22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"></rect><path d="M2 10h20M6 15h4"></path></svg>',
+        iconBg: 'var(--orange-tint)', label: 'งบประมาณที่ใช้ไป',
+        value: data.totalBudgetUsed.toLocaleString(), unit: `/ ${totalBudget.toLocaleString()} ฿`,
+        pct: pct(data.totalBudgetUsed, totalBudget), fill: 'progress-fill-orange',
+        caption: `ใช้ไปแล้ว ${pct(data.totalBudgetUsed, totalBudget)}% ของงบทั้งหมด`,
+      },
+      {
+        icon: '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F05A22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"></path><circle cx="12" cy="12" r="9"></circle></svg>',
+        iconBg: 'var(--orange-tint)', label: 'Register สะสม',
+        value: data.totalRegistrations.toLocaleString(), unit: 'ครั้ง',
+        pct: pct(data.totalRegistrations, totalUserTarget), fill: 'progress-fill-orange',
+        caption: `จากเป้าหมาย ${totalUserTarget.toLocaleString()} ครั้ง (${pct(data.totalRegistrations, totalUserTarget)}%)`,
+      },
+      {
+        icon: '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#00A9AC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>',
+        iconBg: 'var(--teal-tint)', label: "บัตร Lotus's แจกแล้ว",
+        value: data.totalCards.toLocaleString(), unit: 'ใบ', valueColor: 'var(--teal)',
+        pct: pct(data.totalCards, totalCardQuota), fill: 'progress-fill-teal',
+        caption: `จากโควตา ${totalCardQuota.toLocaleString()} ใบ (${data.campaign.cardValueBaht} ฿/ใบ)`,
+      },
+      {
+        icon: '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#7A9A21" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"></circle><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"></path></svg>',
+        iconBg: 'var(--lime-tint)', label: 'ช่างที่เข้าร่วม',
+        value: data.participatingEmployees.toLocaleString(), unit: 'คน', valueColor: 'var(--lime-text)',
+        pct: pct(data.participatingEmployees, data.totalMembers), fill: 'progress-fill-lime',
+        caption: `${data.participatingEmployees} จาก ${data.totalMembers} คนที่ลงทะเบียนเข้าร่วมโครงการ`,
+      },
+    ];
+
+    document.getElementById('kpiRow').innerHTML = kpis.map(k => `
+      <div class="card" style="padding:18px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <div class="icon-badge" style="background:${k.iconBg};">${k.icon}</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:600;">${k.label}</div>
+        </div>
+        <div class="kpi-value">
+          <span class="big num" style="${k.valueColor ? `color:${k.valueColor};` : ''}">${k.value}</span>
+          <span class="small">${k.unit}</span>
+        </div>
+        <div class="progress-track" style="margin-top:10px;"><div class="${k.fill}" style="width:${Math.min(k.pct,100)}%;"></div></div>
+        <div class="kpi-caption num">${k.caption}</div>
+      </div>
+    `).join('');
+  }
+
+  // ---- Trend chart ----
+  function renderTrend(trend) {
+    const trendAvg = trend.length ? Math.round((trend.reduce((s, d) => s + d.count, 0) / trend.length) * 10) / 10 : 0;
+    const trendMax = Math.max(1, ...trend.map(d => d.count));
+    document.getElementById('trendSub').textContent =
+      trend.length ? `${trend[0].date} – ${trend[trend.length - 1].date} · เฉลี่ย ${trendAvg} ครั้ง/วัน` : 'ยังไม่มีข้อมูล';
+    document.getElementById('trendChart').innerHTML = `<div class="trend-bars">` + trend.map(d => `
+      <div class="trend-bar" title="${d.date}: ${d.count} ครั้ง" style="height:${Math.max(4, (d.count / trendMax) * 100)}%; background:${d.isWeekend ? 'var(--teal)' : 'var(--orange)'};"></div>
+    `).join('') + `</div>`;
+  }
+
+  // ---- Bracket bars ----
+  function renderBrackets(brackets) {
+    document.getElementById('bracketBars').innerHTML = brackets.map(b => `
+      <div class="bracket-row">
+        <div class="head">
+          <span style="font-weight:600;">${b.size} <span style="font-weight:400; color:var(--muted);">· ${b.stores} ร้าน · ${b.range}</span></span>
+          <span class="num" style="color:var(--muted);">${b.cardsUsed} / ${b.cardQuota} ใบ · ${pct(b.cardsUsed, b.cardQuota)}%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill-orange" style="width:${Math.min(pct(b.cardsUsed,b.cardQuota),100)}%;"></div></div>
+      </div>
+    `).join('');
+  }
+
+  // ---- Donut ----
+  function renderDonut(data) {
+    const leaderboard = data.leaderboard;
+    const atCap = leaderboard.filter(e => e.atCap).length;
+    const accumulating = leaderboard.filter(e => e.referralCount > 0 && !e.atCap).length;
+    const notStarted = leaderboard.filter(e => e.referralCount === 0).length;
+    const total = leaderboard.length;
+    const capDeg = 360 * (atCap / total);
+    const accDeg = 360 * ((atCap + accumulating) / total);
+    document.getElementById('donutSub').textContent = `จากช่างที่ลงทะเบียนทั้งหมด ${total} คน`;
+    document.getElementById('donutWrap').innerHTML = `
+      <div class="donut" style="background:conic-gradient(var(--teal) 0deg ${capDeg}deg, var(--orange) ${capDeg}deg ${accDeg}deg, var(--track) ${accDeg}deg 360deg);">
+        <div class="center"><div class="num" style="font-size:20px; font-weight:800;">${data.participatingEmployees}</div><div style="font-size:10px; color:var(--muted);">เข้าร่วมแล้ว</div></div>
+      </div>
+      <div class="donut-legend">
+        <div class="row"><span class="swatch" style="background:var(--teal);"></span><div><div style="font-size:13px; font-weight:600;">ถึงเพดานแล้ว</div><div class="num" style="font-size:12px; color:var(--muted);">${atCap} คน · ${pct(atCap,total)}%</div></div></div>
+        <div class="row"><span class="swatch" style="background:var(--orange);"></span><div><div style="font-size:13px; font-weight:600;">กำลังสะสมแต้ม</div><div class="num" style="font-size:12px; color:var(--muted);">${accumulating} คน · ${pct(accumulating,total)}%</div></div></div>
+        <div class="row"><span class="swatch" style="background:var(--track);"></span><div><div style="font-size:13px; font-weight:600;">ยังไม่เริ่ม</div><div class="num" style="font-size:12px; color:var(--muted);">${notStarted} คน · ${pct(notStarted,total)}%</div></div></div>
+      </div>
+    `;
+  }
+
+  // ---- Leaderboard ----
+  function renderLeaderboard(leaderboard) {
+    document.getElementById('leaderboard').innerHTML = leaderboard.map((e, i) => `
+      <div class="lb-row">
+        <div class="lb-avatar ${i === 0 && e.referralCount > 0 ? 'top' : ''}">${e.name.slice(-1)}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="lb-name">${e.name}</div>
+          <div class="lb-sub">${e.adName ? `${e.adName} · ${e.adSize}` : 'ยังไม่มีลูกค้าแนะนำสำเร็จ'}</div>
+        </div>
+        <div class="lb-count num">${e.referralCount} <span class="unit">reg</span></div>
+        ${e.atCap
+          ? '<span class="pill pill-teal">ถึงเพดาน</span>'
+          : e.referralCount > 0
+            ? '<span class="pill pill-lime">ปกติ</span>'
+            : '<span class="pill pill-muted">ยังไม่เริ่ม</span>'}
+      </div>
+    `).join('');
+  }
+</script>
+</body>
+</html>

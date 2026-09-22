@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AD Mission × Kubota Care</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .landing { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+  .landing-card { max-width: 420px; width: 100%; }
+  .link-btn {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 20px; margin-top: 14px; text-decoration: none; color: var(--ink);
+  }
+  .link-btn .title { font-size: 14px; font-weight: 700; }
+  .link-btn .desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .link-btn svg { flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="landing">
+  <div class="landing-card">
+    <div class="hero-badge" style="justify-content:center; margin-bottom:16px;">
+      <div class="logo" style="background:var(--orange); color:#fff;">AD</div>
+      <span style="color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;">AD Mission × Kubota Care</span>
+    </div>
+    <a class="card link-btn" href="check.html">
+      <div>
+        <div class="title">เช็คผลงานสะสมแต้มของฉัน</div>
+        <div class="desc">สำหรับช่าง — กรอกเลขบัตรประชาชนเพื่อดูผลงาน</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F05A22" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
+    <a class="card link-btn" href="admin.html">
+      <div>
+        <div class="title">ภาพรวมแคมเปญ (Admin)</div>
+        <div class="desc">สำหรับทีม Kubota — งบ ยอดลงทะเบียน บัตรรางวัล</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F05A22" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
+  </div>
+</div>
+</body>
+</html>
