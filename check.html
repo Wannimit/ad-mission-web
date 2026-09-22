@@ -128,6 +128,10 @@
 
     const bracket = summary.bracket ? { ...summary.bracket, range: BRACKET_RANGE_LABELS[summary.bracket.size] || '' } : null;
 
+    const redeemOpensAt = summary.redeemOpensAt ? new Date(summary.redeemOpensAt + 'T00:00:00+07:00') : null;
+    const redeemIsOpen = !redeemOpensAt || new Date() >= redeemOpensAt;
+    const redeemOpenLabel = redeemOpensAt ? redeemOpensAt.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
     // packs of 4
     const packs = [];
     for (let i = 0; i < referrals.length; i += campaign.pointsPerCard) {
@@ -192,13 +196,13 @@
           </div>
           <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
             <span class="pill pill-teal" style="font-size:12px; padding:7px 15px;">ได้รับแล้ว ${cardsEarned} ใบ</span>
-            <a class="btn-dark" href="https://forms.gle/y8fxcMw8jkbNHKy2A" target="_blank" rel="noopener" style="text-decoration:none; ${cardsEarned === 0 ? 'opacity:.45; pointer-events:none;' : ''}">
+            <a class="btn-dark" href="https://forms.gle/y8fxcMw8jkbNHKy2A" target="_blank" rel="noopener" style="text-decoration:none; ${(cardsEarned === 0 || !redeemIsOpen) ? 'opacity:.45; pointer-events:none;' : ''}">
               กรอกข้อมูลรับบัตร
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
             </a>
           </div>
         </div>
-        <div class="hint">กด "กรอกข้อมูลรับบัตร" แล้วระบบจะพาไปกรอกข้อมูลรับบัตรกำนัล Lotus's ใน Google Form</div>
+        <div class="hint">${cardsEarned > 0 && !redeemIsOpen ? `กดแลกได้ในวันที่ ${redeemOpenLabel}` : 'กด "กรอกข้อมูลรับบัตร" แล้วระบบจะพาไปกรอกข้อมูลรับบัตรกำนัล Lotus\'s ใน Google Form'}</div>
       </div>
 
       ${bracket ? `
