@@ -6,10 +6,9 @@
 <title>AD Mission – เช็คผลงานพนักงาน</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .hero-wrap { position: relative; }
-  .hero.check { border-radius: 0 0 24px 24px; padding-bottom: 56px; }
-  .id-card { padding: 20px; margin: -44px 16px 18px; position: relative; z-index: 2; }
-  .id-label { font-size: 12px; font-weight: 600; margin-bottom: 9px; color: #4A453E; }
+  .hero.check { border-radius: 0 0 24px 24px; margin-bottom: -44px; padding-bottom: 56px; }
+  .id-card { padding: 20px; margin-bottom: 18px; }
+  .id-label { font-size: 13px; font-weight: 600; margin-bottom: 9px; color: #4A453E; }
   .id-form { display: flex; gap: 9px; flex-wrap: wrap; }
   .id-input {
     flex: 1; min-width: 200px; height: 46px; border-radius: 12px; border: 1.5px solid var(--orange);
@@ -17,11 +16,11 @@
   }
   .id-input input {
     border: none; background: transparent; outline: none; width: 100%;
-    font-family: inherit; font-size: 15px; font-weight: 600; letter-spacing: .03em; color: var(--ink);
+    font-family: inherit; font-size: 16.5px; font-weight: 600; letter-spacing: .03em; color: var(--ink);
   }
   .btn-dark {
     height: 46px; padding: 0 20px; border-radius: 12px; background: var(--ink); color: #fff;
-    font-size: 13.5px; font-weight: 600; border: none; display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 600; border: none; display: flex; align-items: center; gap: 8px;
     cursor: pointer; white-space: nowrap; font-family: inherit;
   }
   .btn-dark:hover { background: #33302B; }
@@ -29,44 +28,25 @@
   .giftcard img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.08); filter: saturate(1.45) contrast(1.08) brightness(1.03); }
   .giftcard .badge {
     position: absolute; right: -6px; bottom: -6px; min-width: 26px; height: 26px; padding: 0 6px;
-    border-radius: 999px; background: var(--ink); color: #fff; font-weight: 800; font-size: 12px;
+    border-radius: 999px; background: var(--ink); color: #fff; font-weight: 800; font-size: 13px;
     display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,.25);
   }
   .progress-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
-  .progress-grid .lbl { font-size: 11px; color: var(--muted); font-weight: 500; }
-  .progress-grid .val { font-size: 19px; font-weight: 800; margin-top: 3px; }
+  .progress-grid .lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .progress-grid .val { font-size: 21px; font-weight: 800; margin-top: 3px; }
   .pack-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .pack-slot { padding: 9px 8px; border-radius: 10px; background: var(--bg); font-size: 12px; font-weight: 500; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pack-slot { padding: 9px 8px; border-radius: 10px; background: var(--bg); font-size: 13px; font-weight: 500; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pack-slot.empty { border: 1.5px dashed var(--dash-border); background: transparent; color: var(--muted-2); }
   @media (max-width: 500px) { .pack-grid { grid-template-columns: repeat(2, 1fr); } }
   .redeem-row { padding: 18px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  .hint { font-size: 11px; color: var(--muted-2); padding: 0 4px; margin-top: 6px; }
-  .check-content { max-width: 680px; margin: 0 auto; }
+  .hint { font-size: 12px; color: var(--muted-2); padding: 0 4px; margin-top: 6px; }
+  .check-content { max-width: 680px; margin: -40px auto 0; }
   .result-grid { display: flex; flex-direction: column; gap: 20px; }
 
   @media (min-width: 860px) {
     .page.page-narrow { max-width: 980px; }
-    .check-content { max-width: 980px; margin-top: 24px; }
-
-    .hero-wrap { display: flex; align-items: stretch; }
-    .hero.check { flex: 1; border-radius: 24px 0 0 24px; padding: 26px 32px; }
-    .hero.check .hero-desc { display: none; }
-    .hero.check .hero-inner { display: flex; align-items: center; gap: 16px; }
-    .hero.check .hero-title { font-size: 19px !important; }
-
-    .id-card {
-      flex-shrink: 0; margin: 0; border-radius: 0 24px 24px 0;
-      background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
-      display: flex; align-items: center; gap: 16px; padding: 0 32px;
-    }
-    .id-card .id-label { margin-bottom: 0; white-space: nowrap; color: rgba(255,255,255,.85); }
-    .id-card .id-form { flex-wrap: nowrap; }
-    .id-card .id-input { border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.14); min-width: 0; width: 150px; }
-    .id-card .id-input input { color: #fff; }
-    .id-card .id-input input::placeholder { color: rgba(255,255,255,.6); }
-    .id-card .id-input svg { stroke: #fff; }
-    #checkBtn { background: rgba(0,0,0,.28); }
-    #checkBtn:hover { background: rgba(0,0,0,.4); }
+    .check-content { max-width: 980px; }
+    .id-card { padding: 20px; margin-bottom: 18px; }
 
     .result-grid {
       display: grid;
@@ -82,23 +62,25 @@
     .rg-redeem .redeem-row { flex-direction: column; align-items: stretch; text-align: center; }
     .rg-redeem .redeem-row .rr-image { width: 100% !important; max-width: 220px; margin: 0 auto; }
     .rg-redeem .redeem-row .rr-text { min-width: 0 !important; }
-    .rg-redeem .redeem-row .rr-actions { flex-direction: row !important; align-items: center !important; justify-content: space-between; width: 100%; }
+    .rg-redeem .redeem-row .rr-actions { justify-content: center; }
   }
 </style>
 </head>
 <body>
 
-<div class="hero-wrap">
-  <div class="hero check">
-    <div class="hero-inner">
-      <div class="hero-badge">
-        <span class="logo">AD</span>
-        <span class="label">Kubota Care</span>
-      </div>
-      <div class="hero-title" style="font-size:22px;">เช็คผลงานสะสมแต้มของคุณ</div>
-      <div class="hero-desc">กรอกเลขบัตรประชาชนของคุณ เพื่อดูว่าพาลูกค้าโหลดแอป Kubota Care สำเร็จไปแล้วกี่คน</div>
+<div class="hero check">
+  <div class="hero-inner">
+    <div class="hero-badge">
+      <span class="logo">AD</span>
+      <span class="label">Kubota Care</span>
     </div>
+    <div class="hero-title" style="font-size:24px;">เช็คผลงานสะสมแต้มของคุณ</div>
+    <div class="hero-desc">กรอกเลขบัตรประชาชนของคุณ เพื่อดูว่าพาลูกค้าโหลดแอป Kubota Care สำเร็จไปแล้วกี่คน</div>
   </div>
+</div>
+
+<div class="page page-narrow">
+<div class="content check-content">
 
   <div class="card id-card">
     <div class="id-label">เลขบัตรประชาชน 13 หลัก</div>
@@ -113,11 +95,6 @@
       </button>
     </div>
   </div>
-
-</div>
-
-<div class="page page-narrow">
-<div class="content check-content">
 
   <div id="resultArea"></div>
 
@@ -175,18 +152,14 @@
 
     const bracket = summary.bracket ? { ...summary.bracket, range: BRACKET_RANGE_LABELS[summary.bracket.size] || '' } : null;
 
-    const redeemOpensAt = summary.redeemOpensAt ? new Date(summary.redeemOpensAt + 'T00:00:00+07:00') : null;
-    const redeemIsOpen = !redeemOpensAt || new Date() >= redeemOpensAt;
-    const redeemOpenLabel = redeemOpensAt ? redeemOpensAt.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
-
     // packs of 4
     const packs = [];
     for (let i = 0; i < referrals.length; i += campaign.pointsPerCard) {
       packs.push(referrals.slice(i, i + campaign.pointsPerCard));
     }
-    if (packs.length === 0 || packs[packs.length - 1].length === campaign.pointsPerCard) {
-      if (count < campaign.maxReferralsPerPerson) packs.push([]); // เปิดชุดถัดไปให้เห็นว่ากำลังรอ
-    }
+    const maxPacks = Math.ceil(campaign.maxReferralsPerPerson / campaign.pointsPerCard);
+    const targetPacks = Math.min(Math.max(4, packs.length), maxPacks);
+    while (packs.length < targetPacks) packs.push([]); // โชว์ชุดว่างล่วงหน้าอย่างน้อย 4 ชุด
 
     const packsHtml = packs.map((pack, idx) => {
       const complete = pack.length === campaign.pointsPerCard;
@@ -198,7 +171,7 @@
       return `
         <div class="card ${complete ? '' : 'dashed'}" style="padding:16px 18px;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <span style="font-size:13px; font-weight:700;">ชุดที่ ${idx + 1}</span>
+            <span style="font-size:14.5px; font-weight:700;">ชุดที่ ${idx + 1}</span>
             ${complete
               ? '<span class="pill pill-teal"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00767A" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><path d="M9 12l2 2 4-4"></path></svg>ได้บัตรแล้ว</span>'
               : `<span class="pill pill-muted">กำลังสะสม ${pack.length}/4</span>`}
@@ -211,27 +184,27 @@
       <div class="result-grid">
         <div class="card rg-stats" style="padding:22px;">
           <div class="progress-grid">
-            <div><div class="lbl">ลูกค้าที่แนะนำสำเร็จ</div><div class="val num">${count} <span style="font-size:11px; font-weight:500; color:var(--muted);">คน</span></div></div>
-            <div><div class="lbl">บัตรที่ได้รับ</div><div class="val num" style="color:var(--orange);">${cardsEarned} <span style="font-size:11px; font-weight:500; color:var(--muted);">ใบ</span></div></div>
-            <div><div class="lbl">ถึงเพดานสูงสุด</div><div class="val num">${cardsEarned}<span style="font-size:12px; color:var(--muted-2);">/${campaign.maxCardsPerPerson}</span> <span style="font-size:11px; font-weight:500; color:var(--muted);">ใบ</span></div></div>
+            <div><div class="lbl">ลูกค้าที่แนะนำสำเร็จ</div><div class="val num">${count} <span style="font-size:12px; font-weight:500; color:var(--muted);">คน</span></div></div>
+            <div><div class="lbl">บัตรที่ได้รับ</div><div class="val num" style="color:var(--orange);">${cardsEarned} <span style="font-size:12px; font-weight:500; color:var(--muted);">ใบ</span></div></div>
+            <div><div class="lbl">ถึงเพดานสูงสุด</div><div class="val num">${cardsEarned}<span style="font-size:13px; color:var(--muted-2);">/${campaign.maxCardsPerPerson}</span> <span style="font-size:12px; font-weight:500; color:var(--muted);">ใบ</span></div></div>
           </div>
           ${count >= campaign.maxReferralsPerPerson ? `
-            <div style="font-size:12px; font-weight:600; color:var(--teal-text);">ถึงเพดานสูงสุดแล้ว 🎉 ไม่สามารถสะสมเพิ่มได้ในกิจกรรมนี้</div>
+            <div style="font-size:13px; font-weight:600; color:var(--teal-text);">ถึงเพดานสูงสุดแล้ว 🎉 ไม่สามารถสะสมเพิ่มได้ในกิจกรรมนี้</div>
           ` : `
-            <div style="font-size:12px; font-weight:600; margin-bottom:8px; display:flex; justify-content:space-between;">
+            <div style="font-size:13px; font-weight:600; margin-bottom:8px; display:flex; justify-content:space-between;">
               <span>อีกนิดเดียวก็ได้บัตรใบถัดไป</span>
               <span class="num" style="color:var(--muted); font-weight:500;">${inCurrentPack} / 4 คน</span>
             </div>
             <div style="display:flex; gap:7px;">
               ${[0,1,2,3].map(i => `<div style="flex:1; height:8px; border-radius:4px; background:${i < inCurrentPack ? 'linear-gradient(90deg,var(--orange),var(--orange-light))' : 'var(--track)'};"></div>`).join('')}
             </div>
-            <div style="font-size:11px; color:var(--muted); margin-top:8px;">แนะนำอีก ${remainingToNextCard} คน ครบ 1 บัตร Lotus's (${campaign.cardValueBaht} ฿) · เหลืออีก ${remainingToCap} คนถึงเพดานสูงสุด (${campaign.maxReferralsPerPerson} คน)</div>
+            <div style="font-size:12px; color:var(--muted); margin-top:8px;">แนะนำอีก ${remainingToNextCard} คน ครบ 1 บัตร Lotus's (${campaign.cardValueBaht} ฿) · เหลืออีก ${remainingToCap} คนถึงเพดานสูงสุด (${campaign.maxReferralsPerPerson} คน)</div>
           `}
         </div>
 
         <div class="rg-customers">
           <div class="section-title" style="margin-top:0;">ลูกค้าที่คุณแนะนำสำเร็จ</div>
-          ${count === 0 ? `<div class="card dashed" style="padding:18px 20px; font-size:13px; color:var(--muted);">ยังไม่มีลูกค้าที่แนะนำสำเร็จในระบบ</div>` : `<div class="stack">${packsHtml}</div>`}
+          ${count === 0 ? `<div class="card dashed" style="padding:18px 20px; font-size:14.5px; color:var(--muted);">ยังไม่มีลูกค้าที่แนะนำสำเร็จในระบบ</div>` : `<div class="stack">${packsHtml}</div>`}
         </div>
 
         <div class="rg-redeem">
@@ -242,18 +215,14 @@
                 <img src="lotus-giftcard.png" alt="บัตรกำนัล Lotus's 100 บาท">
               </div>
               <div class="rr-text" style="flex:1; min-width:160px;">
-                <div style="font-size:13.5px; font-weight:700;">บัตรกำนัล Lotus's 100.-</div>
-                <div style="font-size:12px; color:var(--muted); margin-top:2px;">ทุก 4 คนที่แนะนำสำเร็จ = 1 บัตร · กรอกข้อมูลรับบัตรผ่าน Google Form</div>
+                <div style="font-size:15px; font-weight:700;">บัตรกำนัล Lotus's 100.-</div>
+                <div style="font-size:13px; color:var(--muted); margin-top:2px;">ทุก 4 คนที่แนะนำสำเร็จ = 1 บัตร</div>
               </div>
-              <div class="rr-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-                <span class="pill pill-teal" style="font-size:12px; padding:7px 15px;">ได้รับแล้ว ${cardsEarned} ใบ</span>
-                <a class="btn-dark" href="https://forms.gle/y8fxcMw8jkbNHKy2A" target="_blank" rel="noopener" style="text-decoration:none; ${(cardsEarned === 0 || !redeemIsOpen) ? 'opacity:.45; pointer-events:none;' : ''}">
-                  กรอกข้อมูลรับบัตร
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-                </a>
+              <div class="rr-actions" style="display:flex; justify-content:center; width:100%;">
+                <span class="pill pill-teal" style="font-size:13px; padding:7px 15px;">ได้รับแล้ว ${cardsEarned} ใบ</span>
               </div>
             </div>
-            <div class="hint">${cardsEarned > 0 && !redeemIsOpen ? `กดแลกได้ในวันที่ ${redeemOpenLabel}` : 'กด "กรอกข้อมูลรับบัตร" แล้วระบบจะพาไปกรอกข้อมูลรับบัตรกำนัล Lotus\'s ใน Google Form'}</div>
+            <div class="hint">ปุ่มกรอกข้อมูลรับบัตรจะเปิดให้กดเร็วๆ นี้</div>
           </div>
         </div>
 
@@ -264,13 +233,13 @@
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A6A16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"></path></svg>
             </div>
             <div style="flex:1; min-width:200px;">
-              <div style="font-size:13px; font-weight:700;">บัตรคงเหลือในกลุ่มร้านของคุณ</div>
-              <div style="font-size:11.5px; color:var(--muted); margin:2px 0 9px;">Bracket ${bracket.size} (${bracket.range}) · ${bracket.stores} ร้านแข่งใช้โควตาร่วมกัน</div>
+              <div style="font-size:14.5px; font-weight:700;">บัตรคงเหลือในกลุ่มร้านของคุณ</div>
+              <div style="font-size:12.5px; color:var(--muted); margin:2px 0 9px;">Bracket ${bracket.size} (${bracket.range}) · ${bracket.stores} ร้านแข่งใช้โควตาร่วมกัน</div>
               <div class="progress-track" style="max-width:320px;"><div class="progress-fill-amber" style="width:${Math.min(pct(bracket.cardsUsed, bracket.cardQuota),100)}%;"></div></div>
             </div>
-            <div style="text-align:center; flex-shrink:0;">
-              <div class="num" style="font-size:23px; font-weight:800; color:var(--amber-text);">${bracket.cardsRemaining}</div>
-              <div style="font-size:10px; color:var(--muted);">/ ${bracket.cardQuota} ใบ</div>
+            <div style="text-align:center; flex-shrink:0; display:flex; align-items:baseline; gap:5px;">
+              <div class="num" style="font-size:25.5px; font-weight:800; color:var(--amber-text);">${bracket.cardsRemaining}</div>
+              <div style="font-size:11px; color:var(--muted);">/ ${bracket.cardQuota} ใบ</div>
             </div>
           </div>` : ''}
         </div>
