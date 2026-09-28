@@ -221,7 +221,11 @@ function autoStampNewCards_(data) {
   });
 
   if (phonesToAppend.length > 0) {
-    const startRow = sheet.getLastRow() + 1;
+    // ห้ามใช้ sheet.getLastRow() ตรงนี้ — คอลัมน์ B-D เป็น ARRAYFORMULA ที่ spill ยาวถึงแถว 1000
+    // ทำให้ Sheets มองว่าแถวพวกนั้น "มีข้อมูล" ไปด้วย getLastRow() เลยเพี้ยนเป็นเกือบ 1000 บัตรใหม่
+    // ที่เขียนจะไปโผล่แถวท้ายสุดของชีตแทนที่จะต่อจากแถวข้อมูลจริง (เจอบั๊กนี้จริงมาแล้ว บัตรหายเข้ากลีบเมฆ)
+    // ใช้จำนวนแถวข้อมูลจริงจาก existing (อ่านจาก readStamps_ ซึ่งกรอง cell ว่างจาก spill ออกแล้ว) แทน
+    const startRow = existing.length + 2;
     // ตั้ง format คอลัมน์ phone เป็นข้อความก่อนเขียนเสมอ ไม่งั้น Sheets จะตีความ "0914..." เป็นตัวเลข
     // แล้วตัดเลข 0 นำหน้าทิ้ง (เจอบั๊กนี้จริงมาแล้ว — เลขเพี้ยนจนจับคู่กับ phone เดิมไม่ได้อีกเลย)
     sheet.getRange(startRow, 1, phonesToAppend.length, 1).setNumberFormat('@');
