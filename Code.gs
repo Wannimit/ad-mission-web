@@ -218,7 +218,11 @@ function autoStampNewCards_(data) {
   });
 
   if (rowsToAppend.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAppend.length, 5).setValues(rowsToAppend);
+    const startRow = sheet.getLastRow() + 1;
+    // ตั้ง format คอลัมน์ phone เป็นข้อความก่อนเขียนเสมอ ไม่งั้น Sheets จะตีความ "0914..." เป็นตัวเลข
+    // แล้วตัดเลข 0 นำหน้าทิ้ง (เจอบั๊กนี้จริงมาแล้ว — เลขเพี้ยนจนจับคู่กับ phone เดิมไม่ได้อีกเลย)
+    sheet.getRange(startRow, 1, rowsToAppend.length, 1).setNumberFormat('@');
+    sheet.getRange(startRow, 1, rowsToAppend.length, 5).setValues(rowsToAppend);
   }
 
   return { added: rowsToAppend.length };
