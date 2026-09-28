@@ -102,7 +102,7 @@ a:hover { color: var(--orange-dark); }
   letter-spacing: .07em; text-transform: uppercase;
 }
 .hero-title { font-size: 23px; font-weight: 800; line-height: 1.35; }
-.hero-desc { color: rgba(255,255,255,.88); font-size: 14px; margin-top: 7px; line-height: 1.6; max-width: 560px; }
+.hero-desc { color: rgba(255,255,255,.88); font-size: 14px; margin-top: 7px; line-height: 1.6; max-width: 640px; }
 .hero-sync {
   display: inline-flex; align-items: center; gap: 6px;
   background: rgba(255,255,255,.14); border-radius: 20px; padding: 7px 13px;
