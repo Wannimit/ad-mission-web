@@ -163,8 +163,9 @@
       packs.push(referrals.slice(i, i + campaign.pointsPerCard));
     }
     const maxPacks = Math.ceil(campaign.maxReferralsPerPerson / campaign.pointsPerCard);
-    const targetPacks = Math.min(Math.max(4, packs.length), maxPacks);
-    while (packs.length < targetPacks) packs.push([]); // โชว์ชุดว่างล่วงหน้าอย่างน้อย 4 ชุด
+    // โชว์อย่างน้อย 2 ชุดเสมอ พอเริ่มคนแรกของชุดถัดไป (ชุดที่ 2 เป็นต้นไป) ก็โชว์ชุดถัดจากนั้นเป็น preview ล่วงหน้า 1 ชุด ไปเรื่อยๆ จนครบ maxPacks
+    const targetPacks = Math.min(Math.max(2, packs.length + 1), maxPacks);
+    while (packs.length < targetPacks) packs.push([]);
 
     const packsHtml = packs.map((pack, idx) => {
       const complete = pack.length === campaign.pointsPerCard;
