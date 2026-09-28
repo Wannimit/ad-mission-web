@@ -212,11 +212,13 @@ function autoStampNewCards_(data) {
 
   const now = new Date();
   const phonesToAppend = [];
+  const cardNumbersToAppend = []; // บัตรใบที่เท่าไหร่ของคนนั้น (นับต่อจากที่แสตมป์ไปแล้ว)
   summaries.forEach(function (s) {
     const eligible = eligibleCardsFor_(s.referralCount);
     const already = stampedCountByPhone[s.phone] || 0;
     for (let k = already; k < eligible; k++) {
       phonesToAppend.push(s.phone);
+      cardNumbersToAppend.push(k + 1);
     }
   });
 
@@ -231,6 +233,8 @@ function autoStampNewCards_(data) {
     sheet.getRange(startRow, 1, phonesToAppend.length, 1).setNumberFormat('@');
     sheet.getRange(startRow, 1, phonesToAppend.length, 1).setValues(phonesToAppend.map(function (p) { return [p]; }));
     sheet.getRange(startRow, 5, phonesToAppend.length, 1).setValues(phonesToAppend.map(function () { return [now]; }));
+    // คอลัมน์ F: บัตรใบที่เท่าไหร่ — เขียนตรงเป็นตัวเลข ไม่ใช้สูตร (กันปัญหา array formula spill ที่เจอมาแล้วซ้ำ)
+    sheet.getRange(startRow, 6, cardNumbersToAppend.length, 1).setValues(cardNumbersToAppend.map(function (n) { return [n]; }));
   }
 
   return { added: phonesToAppend.length };
