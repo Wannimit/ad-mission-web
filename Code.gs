@@ -70,7 +70,7 @@ function doGet(e) {
     if (mode === 'stamp') {
       const password = String(e.parameter.password || '');
       if (!isValidAdminPassword_(password)) return jsonOut_({ error: 'UNAUTHORIZED' });
-      return jsonOut_(stampCards_());
+      return jsonOut_(autoStampNewCards_(loadAll_()));
     }
     return jsonOut_({ error: 'INVALID_MODE' });
   } catch (err) {
@@ -195,67 +195,33 @@ function buildEmployeeSummaries_(data, stamps) {
   return summaries;
 }
 
-// ---------- แสตมป์บัตร: ล็อกสิทธิ์จริงตามลำดับเวลาที่ครบจริง กันโควตา bracket แจกเกิน (idempotent) ----------
-function stampCards_() {
-  const data = loadAll_();
-  const summaries = buildEmployeeSummaries_(data, []); // ใช้ referralCount ล้วนๆ เพื่อคำนวณ eligible ไม่พึ่งค่าที่แสตมป์ไปแล้ว
-  const quotaBySize = {};
-  data.brackets.forEach(function (b) { quotaBySize[b.size] = b.cardQuota; });
-
+// ---------- แสตมป์บัตรอัตโนมัติ: ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันที ----------
+// เรียกทุกครั้งที่มีคนเรียก mode=personal หรือ mode=admin (ไม่ต้องรอแอดมินกดปุ่มอีกต่อไป)
+// ไม่เช็คโควตา bracket ก่อนบันทึกแล้ว (ตามที่ user ตกลง) — status เป็น 'granted' เสมอ
+// idempotent: เช็ก currentStamped ต่อเบอร์โทรก่อนเสมอ เรียกซ้ำได้ไม่แสตมป์ซ้ำ
+function autoStampNewCards_(data) {
+  const summaries = buildEmployeeSummaries_(data, []);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_STAMPS);
   if (!sheet) throw new Error('ไม่พบแผ่นงาน: ' + SHEET_STAMPS);
 
   const existing = readStamps_();
   const stampedCountByPhone = {};
-  const grantedCountBySize = {};
-  existing.forEach(function (st) {
-    stampedCountByPhone[st.phone] = (stampedCountByPhone[st.phone] || 0) + 1;
-    if (st.status === 'granted') grantedCountBySize[st.adSize] = (grantedCountBySize[st.adSize] || 0) + 1;
-  });
+  existing.forEach(function (st) { stampedCountByPhone[st.phone] = (stampedCountByPhone[st.phone] || 0) + 1; });
 
-  // รวม "ใบที่รอแสตมป์" ของทุกคนเป็น pool เดียว ผูกกับเวลาที่ครบจริง (submitted_at ของ referral
-  // ตัวที่ 4, 8, 12... ของคนนั้น — s.referrals ถูก sort ตาม submittedAt มาแล้วจาก buildEmployeeSummaries_)
-  // แล้วเรียง pool ทั้งหมดตามเวลาที่ครบจริงก่อนแสตมป์ ไม่ใช่ตามลำดับแถวในชีตสมาชิก — ให้คนที่ทำครบ
-  // 4 คนก่อนตามเวลานาฬิกาจริงได้สิทธิ์ granted ก่อนเวลาที่โควตาใกล้เต็ม
-  const pending = [];
+  const rowsToAppend = [];
   summaries.forEach(function (s) {
     const eligible = eligibleCardsFor_(s.referralCount);
     const already = stampedCountByPhone[s.phone] || 0;
     for (let k = already; k < eligible; k++) {
-      const completingReferral = s.referrals[(k + 1) * CAMPAIGN.pointsPerCard - 1];
-      pending.push({
-        phone: s.phone,
-        name: s.name,
-        adSize: s.adSize,
-        completedAt: completingReferral ? new Date(completingReferral.submittedAt) : new Date(8640000000000000),
-      });
+      rowsToAppend.push([s.phone, s.name, s.adSize, 'granted', new Date()]);
     }
-  });
-  pending.sort(function (a, b) { return a.completedAt - b.completedAt; });
-
-  const rowsToAppend = [];
-  let grantedAdded = 0, queuedAdded = 0;
-
-  pending.forEach(function (p) {
-    const quota = quotaBySize[p.adSize] || 0;
-    const usedGranted = grantedCountBySize[p.adSize] || 0;
-    let status;
-    if (usedGranted < quota) {
-      status = 'granted';
-      grantedCountBySize[p.adSize] = usedGranted + 1;
-      grantedAdded++;
-    } else {
-      status = 'queued';
-      queuedAdded++;
-    }
-    rowsToAppend.push([p.phone, p.name, p.adSize, status, new Date()]);
   });
 
   if (rowsToAppend.length > 0) {
     sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAppend.length, 5).setValues(rowsToAppend);
   }
 
-  return { added: rowsToAppend.length, granted: grantedAdded, queued: queuedAdded };
+  return { added: rowsToAppend.length };
 }
 
 function buildBracketSummaries_(data, employeeSummaries, stamps) {
@@ -288,6 +254,7 @@ function buildPersonalSummary(phone) {
   const member = data.members.filter(function (m) { return m.phone === phone; })[0];
   if (!member) return { error: 'NOT_FOUND' };
 
+  autoStampNewCards_(data); // ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันทีตอนเช็ก
   const stamps = readStamps_();
   const summaries = buildEmployeeSummaries_(data, stamps);
   const me = summaries.filter(function (s) { return s.name === member.name; })[0];
@@ -427,6 +394,7 @@ function syncRegistrationsFromExcelOnline() {
 // ---------- mode=admin: ภาพรวมล้วนๆ ไม่มีเบอร์โทร ----------
 function buildAdminSummary() {
   const data = loadAll_();
+  autoStampNewCards_(data); // ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันทีทุกครั้งที่แอดมินเปิดหน้านี้
   const stamps = readStamps_();
   const summaries = buildEmployeeSummaries_(data, stamps);
   const brackets = buildBracketSummaries_(data, summaries, stamps);

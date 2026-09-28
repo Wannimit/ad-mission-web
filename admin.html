@@ -90,7 +90,7 @@
   <div class="card stamp-bar">
     <div>
       <div style="font-size:15px; font-weight:700;">แสตมป์บัตรอัตโนมัติ</div>
-      <div class="desc">ล็อกสิทธิ์บัตรของคนที่ครบ 4 register แล้วแต่ยังไม่ได้แสตมป์ ตามลำดับ กันแจกเกินโควตา bracket — กดซ้ำได้ไม่แสตมป์ซ้ำ</div>
+      <div class="desc">ล็อกสิทธิ์บัตรของคนที่ครบ 4 register แล้วแต่ยังไม่ได้แสตมป์ — ระบบแสตมป์อัตโนมัติให้อยู่แล้วทุกครั้งที่มีคนเช็กผลงานหรือเปิดหน้านี้ ปุ่มนี้ไว้กดตรวจสอบ/แสตมป์เพิ่มเติมได้ทันที — กดซ้ำได้ไม่แสตมป์ซ้ำ</div>
       <div class="stamp-result" id="stampResult"></div>
     </div>
     <button class="stamp-btn" id="stampBtn">แสตมป์อัตโนมัติ</button>
@@ -204,7 +204,7 @@
       } else {
         resultEl.textContent = data.added === 0
           ? 'ไม่มีบัตรใหม่ที่ต้องแสตมป์ (ทุกคนแสตมป์ครบแล้ว)'
-          : `แสตมป์ไปทั้งหมด ${data.added} ใบ — ได้จริงในโควตา ${data.granted} ใบ, รอโควตา (queued) ${data.queued} ใบ`;
+          : `แสตมป์ไปทั้งหมด ${data.added} ใบ`;
         const latest = await fetchApi({ mode: 'admin', password });
         if (!latest.error) render(latest);
       }
