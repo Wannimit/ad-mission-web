@@ -288,26 +288,6 @@ function buildPersonalSummary(phone) {
   };
 }
 
-// ---------- นับยอด register รายวัน (นับรวมเท่านั้น ไม่มีชื่อลูกค้า/ช่างปน ปลอดภัยที่จะส่งให้ admin) ----------
-function buildDailyTrend_(registrations) {
-  const counts = {};
-  registrations.forEach(function (r) {
-    const day = String(r.submittedAt).slice(0, 10);
-    counts[day] = (counts[day] || 0) + 1;
-  });
-  const days = Object.keys(counts).sort();
-  if (days.length === 0) return [];
-  const start = new Date(days[0]);
-  const end = new Date(days[days.length - 1]);
-  const out = [];
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const key = Utilities.formatDate(d, 'Asia/Bangkok', 'yyyy-MM-dd');
-    const dow = d.getDay(); // 0 = อาทิตย์, 6 = เสาร์
-    out.push({ date: key, count: counts[key] || 0, isWeekend: dow === 0 || dow === 6 });
-  }
-  return out;
-}
-
 // ================================================================
 // Sync "ผลการสมัคร" จาก Excel Online ผ่าน Microsoft Graph API
 // (แทน Power Automate ที่ติด DLP policy บล็อก Google Sheets connector
@@ -404,35 +384,29 @@ function syncRegistrationsFromExcelOnline() {
 }
 
 // ---------- mode=admin: ภาพรวมล้วนๆ ไม่มีเบอร์โทร ----------
+// ส่ง "brackets" เป็นค่าคงที่ตามเกณฑ์เท่านั้น (ไม่คำนวณ cardsUsed/storesActive ที่นี่แล้ว) และส่ง
+// "employees" เป็นรายคน พร้อม timestamp ของทุก referral (ไม่มีชื่อลูกค้า/เบอร์โทรปน) ให้ฝั่ง client
+// เอาไปคำนวณ KPI/leaderboard/trend ใหม่เองได้ทันทีตามตัวกรอง (ช่วงวันที่/Bracket/ร้าน) โดยไม่ต้องยิง
+// request ใหม่ทุกครั้งที่เปลี่ยนตัวกรอง
 function buildAdminSummary() {
   const data = loadAll_();
   autoStampNewCards_(data); // ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันทีทุกครั้งที่แอดมินเปิดหน้านี้
-  const stamps = readStamps_();
-  const summaries = buildEmployeeSummaries_(data, stamps);
-  const brackets = buildBracketSummaries_(data, summaries, stamps);
+  const summaries = buildEmployeeSummaries_(data, []);
 
-  const totalRegistrations = data.registrations.length;
-  const totalCards = summaries.reduce(function (sum, s) { return sum + s.cardsEarned; }, 0);
-  const totalBudgetUsed = totalCards * CAMPAIGN.cardValueBaht;
-  const participatingEmployees = summaries.filter(function (s) { return s.referralCount > 0; }).length;
-
-  const leaderboard = summaries
-    .sort(function (a, b) { return b.referralCount - a.referralCount; })
-    .map(function (s) {
-      return { name: s.name, adName: s.adName, adSize: s.adSize, referralCount: s.referralCount, cardsEarned: s.cardsEarned, atCap: s.atCap };
-      // หมายเหตุ: ไม่ใส่เบอร์โทรในผลลัพธ์นี้เด็ดขาด — ชื่อช่าง/ร้านไม่ใช่ข้อมูลลับ แต่เบอร์โทรเป็น
-    });
+  const employees = summaries.map(function (s) {
+    return {
+      name: s.name,
+      adName: s.adName,
+      adSize: s.adSize,
+      referrals: s.referrals.map(function (r) { return r.submittedAt; }),
+    };
+  });
 
   return {
     campaign: CAMPAIGN,
-    totalRegistrations: totalRegistrations,
-    totalCards: totalCards,
-    totalBudgetUsed: totalBudgetUsed,
     totalMembers: data.members.length,
-    participatingEmployees: participatingEmployees,
-    brackets: brackets,
-    leaderboard: leaderboard,
-    dailyTrend: buildDailyTrend_(data.registrations),
+    brackets: data.brackets, // { size, stores, cardQuota, userTarget, budget } — ค่าคงที่ตามเกณฑ์ ไม่ผูกกับตัวกรอง
+    employees: employees,
     generatedAt: new Date().toISOString(),
   };
 }

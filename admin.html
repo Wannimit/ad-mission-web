@@ -32,8 +32,29 @@
   .lb-sub { font-size: 12.5px; color: var(--muted); }
   .lb-count { font-size: 14.5px; font-weight: 700; width: 56px; text-align: right; flex-shrink: 0; }
   .lb-count .unit { font-size: 11.5px; font-weight: 400; color: var(--muted); }
-  .filter-bar { display: flex; gap: 8px; padding: 12px 14px; overflow-x: auto; align-items: center; }
+  .filter-bar { display: flex; gap: 8px; padding: 12px 14px; overflow: visible; align-items: center; flex-wrap: wrap; }
   .filter-chip { padding: 7px 12px; border-radius: 9px; background: var(--bg); font-size: 12.5px; font-weight: 600; color: #4A453E; white-space: nowrap; flex-shrink: 0; }
+  .filter-pop { position: relative; }
+  .filter-pop > summary { list-style: none; cursor: pointer; user-select: none; }
+  .filter-pop > summary::-webkit-details-marker { display: none; }
+  .filter-pop[open] > summary { background: var(--orange-tint); color: var(--orange-dark); }
+  .filter-panel {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(28,26,23,.12); padding: 12px; min-width: 220px;
+  }
+  .filter-panel .date-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .filter-panel .date-row label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .filter-panel input[type="date"] { border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-family: inherit; font-size: 13px; }
+  .filter-check-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .filter-check-list label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .filter-panel-actions { display: flex; gap: 8px; }
+  .filter-panel-actions button {
+    flex: 1; border: none; border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .filter-btn-apply { background: var(--ink); color: #fff; }
+  .filter-btn-reset { background: var(--track); color: #4A453E; }
+  .filter-clear-chip { margin-left: auto; background: var(--danger-tint); color: var(--danger-text); border: none; cursor: pointer; font-family: inherit; }
   .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
   .gate-card { max-width: 360px; width: 100%; padding: 28px 26px; text-align: center; }
   .gate-card .logo { width: 40px; height: 40px; border-radius: 11px; background: var(--orange); color: #fff; font-weight: 800; font-size: 14.5px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
@@ -96,10 +117,41 @@
     <button class="stamp-btn" id="stampBtn">แสตมป์อัตโนมัติ</button>
   </div>
 
-  <div class="card filter-bar">
-    <div class="filter-chip">1 – 21 ก.ย. 2569</div>
-    <div class="filter-chip">ทุก Bracket</div>
-    <div class="filter-chip">ทุกร้าน</div>
+  <div class="card filter-bar" id="filterBar">
+    <details class="filter-pop" id="dateFilterPop">
+      <summary class="filter-chip" id="dateChipLabel">ทุกช่วงวันที่</summary>
+      <div class="filter-panel">
+        <div class="date-row">
+          <label>จากวันที่ <input type="date" id="dateFromInput"></label>
+          <label>ถึงวันที่ <input type="date" id="dateToInput"></label>
+        </div>
+        <div class="filter-panel-actions">
+          <button class="filter-btn-reset" id="dateResetBtn" type="button">รีเซ็ต</button>
+          <button class="filter-btn-apply" id="dateApplyBtn" type="button">ใช้ตัวกรอง</button>
+        </div>
+      </div>
+    </details>
+    <details class="filter-pop" id="bracketFilterPop">
+      <summary class="filter-chip" id="bracketChipLabel">ทุก Bracket</summary>
+      <div class="filter-panel">
+        <div class="filter-check-list" id="bracketCheckList"></div>
+        <div class="filter-panel-actions">
+          <button class="filter-btn-reset" id="bracketResetBtn" type="button">เลือกทั้งหมด</button>
+          <button class="filter-btn-apply" id="bracketApplyBtn" type="button">ใช้ตัวกรอง</button>
+        </div>
+      </div>
+    </details>
+    <details class="filter-pop" id="storeFilterPop">
+      <summary class="filter-chip" id="storeChipLabel">ทุกร้าน</summary>
+      <div class="filter-panel">
+        <div class="filter-check-list" id="storeCheckList"></div>
+        <div class="filter-panel-actions">
+          <button class="filter-btn-reset" id="storeResetBtn" type="button">เลือกทั้งหมด</button>
+          <button class="filter-btn-apply" id="storeApplyBtn" type="button">ใช้ตัวกรอง</button>
+        </div>
+      </div>
+    </details>
+    <button class="filter-chip filter-clear-chip" id="clearAllFiltersBtn" type="button" style="display:none;">ล้างตัวกรองทั้งหมด</button>
   </div>
 
   <div style="height:16px;"></div>
@@ -144,7 +196,21 @@
 <script>
   function pct(a, b) { return b > 0 ? Math.round((a / b) * 1000) / 10 : 0; }
 
+  const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  function fmtShort(dayStr) {
+    if (!dayStr) return '';
+    const [y, m, d] = dayStr.split('-').map(Number);
+    return `${d} ${TH_MONTHS[m - 1]} ${y + 543}`;
+  }
+
   let currentPassword = null;
+  let rawData = null; // { campaign, totalMembers, brackets, employees, generatedAt } — ไม่ผูกกับตัวกรอง
+  let allDateMin = null, allDateMax = null; // 'yyyy-mm-dd'
+
+  // ตัวกรองที่ใช้งานอยู่ — brackets/stores เป็น null จนกว่าจะรู้รายชื่อทั้งหมดจาก setupFilters()
+  const filters = { from: null, to: null, brackets: null, stores: null };
+  let allBracketSizes = [];
+  let allStoreNames = [];
 
   function unlockGate() {
     document.getElementById('gate').style.display = 'none';
@@ -169,7 +235,9 @@
       }
       currentPassword = password;
       unlockGate();
-      render(data);
+      rawData = data;
+      setupFilters(data);
+      applyFiltersAndRender();
     } catch (err) {
       document.getElementById('gateError').textContent = `เชื่อมต่อระบบไม่สำเร็จ (${err.message})`;
     } finally {
@@ -197,7 +265,11 @@
           ? 'ไม่มีบัตรใหม่ที่ต้องแสตมป์ (ทุกคนแสตมป์ครบแล้ว)'
           : `แสตมป์ไปทั้งหมด ${data.added} ใบ`;
         const latest = await fetchApi({ mode: 'admin', password });
-        if (!latest.error) render(latest);
+        if (!latest.error) {
+          rawData = latest;
+          setupFilters(latest);
+          applyFiltersAndRender();
+        }
       }
     } catch (err) {
       resultEl.textContent = `เชื่อมต่อระบบไม่สำเร็จ (${err.message})`;
@@ -206,26 +278,203 @@
     }
   });
 
-  function render(data) {
-    const brackets = data.brackets.map(b => ({ ...b, range: BRACKET_RANGE_LABELS[b.size] || '' }));
-    const totalBudget = brackets.reduce((s, b) => s + b.budget, 0);
-    const totalUserTarget = brackets.reduce((s, b) => s + b.userTarget, 0);
-    const totalCardQuota = brackets.reduce((s, b) => s + b.cardQuota, 0);
-    const totalStores = brackets.reduce((s, b) => s + b.stores, 0);
+  // ---- Filter setup (รายชื่อ bracket/ร้าน + ช่วงวันที่ ที่มีอยู่จริงในข้อมูล) ----
+  function setupFilters(data) {
+    let minDay = null, maxDay = null;
+    data.employees.forEach(e => e.referrals.forEach(ts => {
+      const day = String(ts).slice(0, 10);
+      if (!minDay || day < minDay) minDay = day;
+      if (!maxDay || day > maxDay) maxDay = day;
+    }));
+    allDateMin = minDay;
+    allDateMax = maxDay;
+    document.getElementById('dateFromInput').min = minDay || '';
+    document.getElementById('dateFromInput').max = maxDay || '';
+    document.getElementById('dateToInput').min = minDay || '';
+    document.getElementById('dateToInput').max = maxDay || '';
+    document.getElementById('dateFromInput').value = filters.from || minDay || '';
+    document.getElementById('dateToInput').value = filters.to || maxDay || '';
 
+    allBracketSizes = data.brackets.map(b => b.size);
+    if (filters.brackets === null) filters.brackets = new Set(allBracketSizes);
+    document.getElementById('bracketCheckList').innerHTML = allBracketSizes.map(size => `
+      <label><input type="checkbox" class="bracketCheck" value="${size}" ${filters.brackets.has(size) ? 'checked' : ''}> ${size}</label>
+    `).join('');
+
+    allStoreNames = Array.from(new Set(data.employees.map(e => e.adName).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'th'));
+    if (filters.stores === null) filters.stores = new Set(allStoreNames);
+    document.getElementById('storeCheckList').innerHTML = allStoreNames.map(name => `
+      <label><input type="checkbox" class="storeCheck" value="${name}" ${filters.stores.has(name) ? 'checked' : ''}> ${name}</label>
+    `).join('');
+  }
+
+  function closeAllFilterPops() {
+    document.querySelectorAll('.filter-pop[open]').forEach(det => det.removeAttribute('open'));
+  }
+
+  document.querySelectorAll('.filter-pop').forEach(det => {
+    det.addEventListener('toggle', () => {
+      if (det.open) {
+        document.querySelectorAll('.filter-pop').forEach(other => { if (other !== det) other.removeAttribute('open'); });
+      }
+    });
+  });
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.filter-pop[open]').forEach(det => { if (!det.contains(e.target)) det.removeAttribute('open'); });
+  });
+
+  document.getElementById('dateApplyBtn').addEventListener('click', () => {
+    filters.from = document.getElementById('dateFromInput').value || null;
+    filters.to = document.getElementById('dateToInput').value || null;
+    closeAllFilterPops();
+    applyFiltersAndRender();
+  });
+  document.getElementById('dateResetBtn').addEventListener('click', () => {
+    filters.from = null;
+    filters.to = null;
+    document.getElementById('dateFromInput').value = allDateMin || '';
+    document.getElementById('dateToInput').value = allDateMax || '';
+    closeAllFilterPops();
+    applyFiltersAndRender();
+  });
+
+  document.getElementById('bracketApplyBtn').addEventListener('click', () => {
+    filters.brackets = new Set(Array.from(document.querySelectorAll('.bracketCheck:checked')).map(el => el.value));
+    closeAllFilterPops();
+    applyFiltersAndRender();
+  });
+  document.getElementById('bracketResetBtn').addEventListener('click', () => {
+    document.querySelectorAll('.bracketCheck').forEach(el => { el.checked = true; });
+    filters.brackets = new Set(allBracketSizes);
+    closeAllFilterPops();
+    applyFiltersAndRender();
+  });
+
+  document.getElementById('storeApplyBtn').addEventListener('click', () => {
+    filters.stores = new Set(Array.from(document.querySelectorAll('.storeCheck:checked')).map(el => el.value));
+    closeAllFilterPops();
+    applyFiltersAndRender();
+  });
+  document.getElementById('storeResetBtn').addEventListener('click', () => {
+    document.querySelectorAll('.storeCheck').forEach(el => { el.checked = true; });
+    filters.stores = new Set(allStoreNames);
+    closeAllFilterPops();
+    applyFiltersAndRender();
+  });
+
+  document.getElementById('clearAllFiltersBtn').addEventListener('click', () => {
+    filters.from = null;
+    filters.to = null;
+    filters.brackets = new Set(allBracketSizes);
+    filters.stores = new Set(allStoreNames);
+    document.getElementById('dateFromInput').value = allDateMin || '';
+    document.getElementById('dateToInput').value = allDateMax || '';
+    document.querySelectorAll('.bracketCheck').forEach(el => { el.checked = true; });
+    document.querySelectorAll('.storeCheck').forEach(el => { el.checked = true; });
+    applyFiltersAndRender();
+  });
+
+  function updateChipLabels() {
+    const noFiltered = !filters.from && !filters.to;
+    document.getElementById('dateChipLabel').textContent = (allDateMin && allDateMax)
+      ? `${fmtShort(filters.from || allDateMin)} – ${fmtShort(filters.to || allDateMax)}`
+      : 'ทุกช่วงวันที่';
+
+    const brChip = document.getElementById('bracketChipLabel');
+    if (filters.brackets.size === allBracketSizes.length) brChip.textContent = 'ทุก Bracket';
+    else if (filters.brackets.size === 0) brChip.textContent = 'ไม่มี Bracket';
+    else if (filters.brackets.size === 1) brChip.textContent = Array.from(filters.brackets)[0];
+    else brChip.textContent = `${filters.brackets.size} Bracket`;
+
+    const stChip = document.getElementById('storeChipLabel');
+    if (filters.stores.size === allStoreNames.length) stChip.textContent = 'ทุกร้าน';
+    else if (filters.stores.size === 0) stChip.textContent = 'ไม่มีร้าน';
+    else if (filters.stores.size === 1) stChip.textContent = Array.from(filters.stores)[0];
+    else stChip.textContent = `${filters.stores.size} ร้าน`;
+
+    const isFiltered = !noFiltered || filters.brackets.size !== allBracketSizes.length || filters.stores.size !== allStoreNames.length;
+    document.getElementById('clearAllFiltersBtn').style.display = isFiltered ? '' : 'none';
+  }
+
+  // ---- คำนวณ referralCount/cardsEarned ของแต่ละคนใหม่ตามตัวกรอง (ช่วงวันที่ + bracket + ร้าน) ----
+  function computeFilteredEmployees() {
+    const campaign = rawData.campaign;
+    return rawData.employees
+      .filter(e => (e.adSize == null || filters.brackets.has(e.adSize)) && (e.adName == null || filters.stores.has(e.adName)))
+      .map(e => {
+        const days = e.referrals
+          .map(ts => String(ts).slice(0, 10))
+          .filter(day => (!filters.from || day >= filters.from) && (!filters.to || day <= filters.to));
+        const referralCount = days.length;
+        const cardsEarned = Math.min(Math.floor(referralCount / campaign.pointsPerCard), campaign.maxCardsPerPerson);
+        return {
+          name: e.name, adName: e.adName, adSize: e.adSize,
+          referralCount, cardsEarned,
+          bahtEarned: cardsEarned * campaign.cardValueBaht,
+          atCap: referralCount >= campaign.maxReferralsPerPerson,
+          referralDays: days,
+        };
+      });
+  }
+
+  function buildTrendFromEmployees(employees) {
+    const start = filters.from || allDateMin;
+    const end = filters.to || allDateMax;
+    if (!start || !end) return [];
+    const counts = {};
+    employees.forEach(e => e.referralDays.forEach(day => { counts[day] = (counts[day] || 0) + 1; }));
+    // ใช้ Date แบบ UTC ล้วนๆ (ไม่ผ่าน local timezone) กันปัญหาวันที่เพี้ยนตอนแปลงกลับด้วย toISOString —
+    // ถ้า parse/format แบบ local time เฉยๆ วันที่จะร่นถอยหลัง 1 วันสำหรับ timezone ที่ UTC+ (เช่นไทย)
+    const out = [];
+    for (let d = new Date(start + 'T00:00:00Z'); d <= new Date(end + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) {
+      const key = d.toISOString().slice(0, 10);
+      const dow = d.getUTCDay();
+      out.push({ date: key, count: counts[key] || 0, isWeekend: dow === 0 || dow === 6 });
+    }
+    return out;
+  }
+
+  function applyFiltersAndRender() {
+    updateChipLabels();
+    renderAll(computeFilteredEmployees());
+  }
+
+  function renderAll(employees) {
+    const totalStores = rawData.brackets.reduce((s, b) => s + b.stores, 0);
     document.getElementById('heroStoreCount').textContent = totalStores;
-    const generated = new Date(data.generatedAt);
+    const generated = new Date(rawData.generatedAt);
     const generatedLabel = generated.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
     document.getElementById('noticeBanner').outerHTML =
       `<div class="notice-banner" id="noticeBanner">ข้อมูลบนหน้านี้ดึง<strong>สด</strong>จากระบบทุกครั้งที่โหลดหน้า (ผ่าน Google Apps Script ที่อ่านชีต "Kubota Care tracking" โดยตรง) — โหลดล่าสุด ${generatedLabel}</div>`;
     document.getElementById('heroSync').innerHTML =
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg> sync ล่าสุด ' + generatedLabel;
 
-    renderKpis(data, totalBudget, totalUserTarget, totalCardQuota);
-    renderTrend(data.dailyTrend || []);
-    renderBrackets(brackets);
-    renderDonut(data);
-    renderLeaderboard(data.leaderboard);
+    const selectedBracketConfigs = rawData.brackets.filter(b => filters.brackets.has(b.size));
+    const totalBudget = selectedBracketConfigs.reduce((s, b) => s + b.budget, 0);
+    const totalUserTarget = selectedBracketConfigs.reduce((s, b) => s + b.userTarget, 0);
+    const totalCardQuota = selectedBracketConfigs.reduce((s, b) => s + b.cardQuota, 0);
+
+    const totalRegistrations = employees.reduce((s, e) => s + e.referralCount, 0);
+    const totalCards = employees.reduce((s, e) => s + e.cardsEarned, 0);
+    const totalBudgetUsed = totalCards * rawData.campaign.cardValueBaht;
+    const participatingEmployees = employees.filter(e => e.referralCount > 0).length;
+
+    renderKpis({
+      campaign: rawData.campaign, totalBudgetUsed, totalRegistrations, totalCards,
+      totalMembers: rawData.totalMembers, participatingEmployees,
+    }, totalBudget, totalUserTarget, totalCardQuota);
+
+    renderTrend(buildTrendFromEmployees(employees));
+
+    renderBrackets(selectedBracketConfigs.map(b => {
+      const empsInBracket = employees.filter(e => e.adSize === b.size);
+      const cardsUsed = empsInBracket.reduce((s, e) => s + e.cardsEarned, 0);
+      const storesActive = new Set(empsInBracket.filter(e => e.referralCount > 0).map(e => e.adName)).size;
+      return { ...b, range: BRACKET_RANGE_LABELS[b.size] || '', cardsUsed, storesActive };
+    }));
+
+    renderDonut(employees, participatingEmployees);
+    renderLeaderboard(employees.slice().sort((a, b) => b.referralCount - a.referralCount));
   }
 
   // ---- KPI cards ----
@@ -302,18 +551,17 @@
   }
 
   // ---- Donut ----
-  function renderDonut(data) {
-    const leaderboard = data.leaderboard;
-    const atCap = leaderboard.filter(e => e.atCap).length;
-    const accumulating = leaderboard.filter(e => e.referralCount > 0 && !e.atCap).length;
-    const notStarted = leaderboard.filter(e => e.referralCount === 0).length;
-    const total = leaderboard.length;
-    const capDeg = 360 * (atCap / total);
-    const accDeg = 360 * ((atCap + accumulating) / total);
+  function renderDonut(employees, participatingEmployees) {
+    const atCap = employees.filter(e => e.atCap).length;
+    const accumulating = employees.filter(e => e.referralCount > 0 && !e.atCap).length;
+    const notStarted = employees.filter(e => e.referralCount === 0).length;
+    const total = employees.length;
+    const capDeg = total ? 360 * (atCap / total) : 0;
+    const accDeg = total ? 360 * ((atCap + accumulating) / total) : 0;
     document.getElementById('donutSub').textContent = `จากช่างที่ลงทะเบียนทั้งหมด ${total} คน`;
     document.getElementById('donutWrap').innerHTML = `
       <div class="donut" style="background:conic-gradient(var(--teal) 0deg ${capDeg}deg, var(--orange) ${capDeg}deg ${accDeg}deg, var(--track) ${accDeg}deg 360deg);">
-        <div class="center"><div class="num" style="font-size:22px; font-weight:800;">${data.participatingEmployees}</div><div style="font-size:11px; color:var(--muted);">เข้าร่วมแล้ว</div></div>
+        <div class="center"><div class="num" style="font-size:22px; font-weight:800;">${participatingEmployees}</div><div style="font-size:11px; color:var(--muted);">เข้าร่วมแล้ว</div></div>
       </div>
       <div class="donut-legend">
         <div class="row"><span class="swatch" style="background:var(--teal);"></span><div><div style="font-size:14.5px; font-weight:600;">ถึงเพดานแล้ว</div><div class="num" style="font-size:13px; color:var(--muted);">${atCap} คน · ${pct(atCap,total)}%</div></div></div>
