@@ -7,11 +7,15 @@
 
   ข้อควรระวังด้านความปลอดภัย (สำคัญสำหรับ Dev ทีมถัดไป):
   ไฟล์นี้ถูก include เข้าเว็บฝั่ง client ทั้งสองหน้า (admin.html, check.html)
-  ตอนนี้ยังฝัง cid + ผลงานของพนักงาน "ทุกคน" ไว้ใน JS ฝั่ง client แบบ plain text
+  ตอนนี้ยังฝังเบอร์โทร + ผลงานของพนักงาน "ทุกคน" ไว้ใน JS ฝั่ง client แบบ plain text
   ซึ่งขัดกับหลักการใน Plan.md ที่ว่า "พนักงาน/ร้านไม่เข้าถึงไฟล์ดิบโดยตรง"
-  เพราะพนักงานคนหนึ่งเปิด dev tools ดูได้ว่าคนอื่นมี cid/ผลงานอะไรบ้าง
-  พอมี backend/API จริงแล้ว ต้องเปลี่ยนเป็นให้ server เป็นคนกรองข้อมูลตาม cid
+  เพราะพนักงานคนหนึ่งเปิด dev tools ดูได้ว่าคนอื่นมีเบอร์โทร/ผลงานอะไรบ้าง
+  พอมี backend/API จริงแล้ว ต้องเปลี่ยนเป็นให้ server เป็นคนกรองข้อมูลตามเบอร์โทร
   ที่ล็อกอินเข้ามาเท่านั้น ห้ามส่ง dataset เต็มมาที่ client อีก
+
+  หมายเหตุ: ไฟล์นี้เป็น snapshot เก่า (2026-09-21) เก็บไว้เป็นตัวอย่างโครงสร้างข้อมูลเท่านั้น
+  ไม่ได้ถูก include ใช้งานจริงแล้ว (ดู Web/apps-script/README.md) — ค่า phone ด้านล่างเป็นเลข cid
+  เดิมที่ยังไม่ได้อัปเดตเป็นเบอร์โทรจริง หลัง backend เปลี่ยน key เป็นเบอร์โทรแล้ว
 */
 
 const CAMPAIGN = {
@@ -33,13 +37,13 @@ const BRACKETS = [
 
 // พนักงานที่เข้าร่วม (จากแผ่นงาน "พนักงานที่เข้าร่วม")
 const EMPLOYEES = [
-  { no: 1, name: "ช่าง A", cid: "1650101117135" },
-  { no: 2, name: "ช่าง B", cid: "1419900412103" },
-  { no: 3, name: "ช่าง C", cid: "1410301127004" },
-  { no: 4, name: "ช่าง D", cid: "3411200150709" },
-  { no: 5, name: "ช่าง E", cid: "3341600059947" },
-  { no: 6, name: "ช่าง F", cid: "4850300002497" },
-  { no: 7, name: "ช่าง G", cid: "1449900439681" },
+  { no: 1, name: "ช่าง A", phone: "1650101117135" },
+  { no: 2, name: "ช่าง B", phone: "1419900412103" },
+  { no: 3, name: "ช่าง C", phone: "1410301127004" },
+  { no: 4, name: "ช่าง D", phone: "3411200150709" },
+  { no: 5, name: "ช่าง E", phone: "3341600059947" },
+  { no: 6, name: "ช่าง F", phone: "4850300002497" },
+  { no: 7, name: "ช่าง G", phone: "1449900439681" },
 ];
 
 // ผลการสมัคร (ลูกค้าที่แนะนำสำเร็จ, จากแผ่นงาน "ผลการสมัคร")
@@ -124,7 +128,7 @@ function buildDailyTrend() {
   return out;
 }
 
-function findEmployeeByCid(cid) {
-  const cleaned = String(cid).replace(/\D/g, "");
-  return EMPLOYEES.find((e) => e.cid === cleaned) || null;
+function findEmployeeByPhone(phone) {
+  const cleaned = String(phone).replace(/\D/g, "");
+  return EMPLOYEES.find((e) => e.phone === cleaned) || null;
 }
