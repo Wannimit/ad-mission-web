@@ -411,8 +411,11 @@ function syncRegistrationsFromExcelOnline() {
   const existing = readSheetAsObjects_(SHEET_REGISTRATIONS);
   const existingKeys = new Set(existing.map(function (r) { return String(r['registration_no'] || ''); }));
 
+  // เขียนแค่ A-G เท่านั้น — คอลัมน์ H (AD) และ I (AD_Size) เป็นสูตร ARRAYFORMULA ที่ lookup
+  // จาก comment_care (E) เองอัตโนมัติอยู่แล้ว (ดูคอลัมน์ H/I ในชีต) ถ้าเขียนทับตรงนี้ด้วย
+  // จะไปโดนช่วง spill ของสูตร ทำให้สูตรพัง (#REF!) และค่าที่เขียนก็สลับคอลัมน์กันด้วย (บั๊กเดิม)
   const headers = ['kubota_id', 'registration_no', 'name', 'submitted_at', 'comment_care',
-    'suggestion_care', 'submitted_at_care', 'AD_size', 'AD'];
+    'suggestion_care', 'submitted_at_care'];
 
   const newRows = sourceRows
     .filter(function (r) { return !existingKeys.has(String(r['registration_no'] || '')); })
