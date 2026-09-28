@@ -142,9 +142,9 @@
 
 <script src="config.js"></script>
 <script>
-  const GATE_SESSION_KEY = 'ad_mission_admin_password';
-
   function pct(a, b) { return b > 0 ? Math.round((a / b) * 1000) / 10 : 0; }
+
+  let currentPassword = null;
 
   function unlockGate() {
     document.getElementById('gate').style.display = 'none';
@@ -161,14 +161,13 @@
         document.getElementById('gateError').textContent = 'รหัสผ่านไม่ถูกต้อง';
         document.getElementById('gatePassword').value = '';
         document.getElementById('gatePassword').focus();
-        try { sessionStorage.removeItem(GATE_SESSION_KEY); } catch (e) {}
         return;
       }
       if (data && data.error) {
         document.getElementById('gateError').textContent = `เกิดข้อผิดพลาด (${data.error})`;
         return;
       }
-      try { sessionStorage.setItem(GATE_SESSION_KEY, password); } catch (e) {}
+      currentPassword = password;
       unlockGate();
       render(data);
     } catch (err) {
@@ -180,20 +179,12 @@
 
   document.getElementById('gateSubmit').addEventListener('click', () => tryGate(document.getElementById('gatePassword').value));
   document.getElementById('gatePassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryGate(document.getElementById('gatePassword').value); });
-
-  let storedPassword = null;
-  try { storedPassword = sessionStorage.getItem(GATE_SESSION_KEY); } catch (e) {}
-  if (storedPassword) {
-    tryGate(storedPassword);
-  } else {
-    document.getElementById('gatePassword').focus();
-  }
+  document.getElementById('gatePassword').focus();
 
   document.getElementById('stampBtn').addEventListener('click', async () => {
     const btn = document.getElementById('stampBtn');
     const resultEl = document.getElementById('stampResult');
-    let password = null;
-    try { password = sessionStorage.getItem(GATE_SESSION_KEY); } catch (e) {}
+    const password = currentPassword;
     if (!password) { resultEl.textContent = 'เซสชันหมดอายุ กรุณาโหลดหน้าใหม่แล้วกรอกรหัสผ่านอีกครั้ง'; return; }
     btn.disabled = true;
     resultEl.textContent = 'กำลังแสตมป์...';
