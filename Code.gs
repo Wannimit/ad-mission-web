@@ -175,14 +175,11 @@ function buildEmployeeSummaries_(data, stamps) {
     s.referrals.push(r);
     if (!s.adName) { s.adName = r.adName; s.adSize = r.adSize; }
   });
-  const stampCountByPhone = {};
-  stamps.forEach(function (st) { stampCountByPhone[st.phone] = (stampCountByPhone[st.phone] || 0) + 1; });
-
   const summaries = [];
   byPhone.forEach(function (s) {
     s.referrals.sort(function (a, b) { return new Date(a.submittedAt) - new Date(b.submittedAt); });
     const count = s.referrals.length;
-    const cardsEarned = stampCountByPhone[s.phone] || 0; // นับจากแถวที่แสตมป์จริงแล้วเท่านั้น (granted+queued รวมกัน)
+    const cardsEarned = eligibleCardsFor_(count); // คำนวณสดจาก referralCount ทุกครั้ง — ไม่ต้องรอแอดมินกด "แสตมป์อัตโนมัติ" อีกต่อไป
     summaries.push({
       name: s.name,
       phone: s.phone,
