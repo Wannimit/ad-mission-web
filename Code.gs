@@ -29,12 +29,11 @@
  *                        (รายชื่อรหัสผ่านที่ใช้เข้าหน้า admin.html ได้ — เพิ่ม/ลบแถวในนี้ได้เลย
  *                        ไม่ต้องแก้โค้ด ตรวจสอบผ่าน ?mode=admin&password=... เท่านั้น ไม่มี endpoint
  *                        ไหนคืนค่ารหัสผ่านกลับออกไปให้ client เห็น)
- *   "บัตรที่แจกแล้ว"     columns: phone, name, adSize, status, stampedAt
- *                        (สร้างโดยปุ่ม "แสตมป์อัตโนมัติ" ใน admin.html เท่านั้น — ห้ามแก้มือ
- *                        1 แถว = 1 บัตรที่ล็อกสิทธิ์แล้วจริง status: "granted" = ได้ในโควตา bracket,
- *                        "queued" = ครบ 4 register แล้วแต่โควตา bracket เต็มตอนแสตมป์ ยังนับว่าได้บัตร
- *                        ฝั่งพนักงาน รอ Admin ตัดสินใจเพิ่มโควตาทีหลัง — cardsEarned ที่ส่งออกทุก mode
- *                        นับจากจำนวนแถวในชีตนี้ ไม่ใช่คำนวณสดจาก referralCount อีกต่อไป)
+ *   "บัตรที่แจกแล้ว"     columns: phone, name, AD, AD_Size, stampedAt
+ *                        (phone + stampedAt เท่านั้นที่ autoStampNewCards_() เขียนจริง — name/AD/AD_Size
+ *                        เป็นสูตร ARRAYFORMULA lookup จาก phone เอง ห้ามพิมพ์ค่าทับคอลัมน์เหล่านี้มือ
+ *                        เดี๋ยวชนกับ spill ของสูตรแล้วพังเป็น #REF! — 1 แถว = 1 บัตรที่บันทึกแล้วจริง
+ *                        cardsEarned ที่ส่งออกทุก mode คำนวณสดจาก referralCount เสมอ ไม่ได้นับจากชีตนี้)
  */
 
 const SHEET_REGISTRATIONS = 'ผลการสมัคร';
@@ -151,14 +150,13 @@ function eligibleCardsFor_(count) {
   return Math.min(Math.floor(count / CAMPAIGN.pointsPerCard), CAMPAIGN.maxCardsPerPerson);
 }
 
-// ---------- อ่านชีต "บัตรที่แจกแล้ว" นับจำนวนแถว (granted+queued) ต่อเบอร์โทร ----------
+// ---------- อ่านชีต "บัตรที่แจกแล้ว" นับจำนวนแถวต่อเบอร์โทร ----------
+// name/AD/AD_Size ในชีตเป็นสูตร ARRAYFORMULA lookup จาก phone เองแล้ว (ดูหัวชีต) — ที่นี่อ่านแค่
+// phone/stampedAt ที่สคริปต์เป็นคนเขียนจริงพอสำหรับนับจำนวนบัตรต่อคน
 function readStamps_() {
   return readSheetAsObjects_(SHEET_STAMPS).map(function (r) {
     return {
       phone: String(r['phone'] || '').replace(/\D/g, ''),
-      name: r['name'],
-      adSize: r['adSize'],
-      status: String(r['status'] || ''),
       stampedAt: formatDate_(r['stampedAt']),
     };
   });
@@ -197,8 +195,12 @@ function buildEmployeeSummaries_(data, stamps) {
 
 // ---------- แสตมป์บัตรอัตโนมัติ: ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันที ----------
 // เรียกทุกครั้งที่มีคนเรียก mode=personal หรือ mode=admin (ไม่ต้องรอแอดมินกดปุ่มอีกต่อไป)
-// ไม่เช็คโควตา bracket ก่อนบันทึกแล้ว (ตามที่ user ตกลง) — status เป็น 'granted' เสมอ
+// ไม่เช็คโควตา bracket ก่อนบันทึกแล้ว (ตามที่ user ตกลง)
 // idempotent: เช็ก currentStamped ต่อเบอร์โทรก่อนเสมอ เรียกซ้ำได้ไม่แสตมป์ซ้ำ
+//
+// เขียนแค่คอลัมน์ A (phone) และ E (stampedAt) เท่านั้น — B (name), C (AD), D (AD_Size)
+// เป็นสูตร ARRAYFORMULA lookup จาก phone เอง (ดูหัวชีต "บัตรที่แจกแล้ว") ถ้าเขียนทับ B-D ด้วย
+// จะไปโดนช่วง spill ของสูตร ทำให้สูตรพัง (#REF!)
 function autoStampNewCards_(data) {
   const summaries = buildEmployeeSummaries_(data, []);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_STAMPS);
@@ -208,24 +210,26 @@ function autoStampNewCards_(data) {
   const stampedCountByPhone = {};
   existing.forEach(function (st) { stampedCountByPhone[st.phone] = (stampedCountByPhone[st.phone] || 0) + 1; });
 
-  const rowsToAppend = [];
+  const now = new Date();
+  const phonesToAppend = [];
   summaries.forEach(function (s) {
     const eligible = eligibleCardsFor_(s.referralCount);
     const already = stampedCountByPhone[s.phone] || 0;
     for (let k = already; k < eligible; k++) {
-      rowsToAppend.push([s.phone, s.name, s.adSize, 'granted', new Date()]);
+      phonesToAppend.push(s.phone);
     }
   });
 
-  if (rowsToAppend.length > 0) {
+  if (phonesToAppend.length > 0) {
     const startRow = sheet.getLastRow() + 1;
     // ตั้ง format คอลัมน์ phone เป็นข้อความก่อนเขียนเสมอ ไม่งั้น Sheets จะตีความ "0914..." เป็นตัวเลข
     // แล้วตัดเลข 0 นำหน้าทิ้ง (เจอบั๊กนี้จริงมาแล้ว — เลขเพี้ยนจนจับคู่กับ phone เดิมไม่ได้อีกเลย)
-    sheet.getRange(startRow, 1, rowsToAppend.length, 1).setNumberFormat('@');
-    sheet.getRange(startRow, 1, rowsToAppend.length, 5).setValues(rowsToAppend);
+    sheet.getRange(startRow, 1, phonesToAppend.length, 1).setNumberFormat('@');
+    sheet.getRange(startRow, 1, phonesToAppend.length, 1).setValues(phonesToAppend.map(function (p) { return [p]; }));
+    sheet.getRange(startRow, 5, phonesToAppend.length, 1).setValues(phonesToAppend.map(function () { return [now]; }));
   }
 
-  return { added: rowsToAppend.length };
+  return { added: phonesToAppend.length };
 }
 
 function buildBracketSummaries_(data, employeeSummaries, stamps) {
@@ -235,9 +239,6 @@ function buildBracketSummaries_(data, employeeSummaries, stamps) {
     const storesActive = new Set(
       empsInBracket.filter(function (e) { return e.referralCount > 0; }).map(function (e) { return e.adName; })
     ).size;
-    // นับตรงจากชีต "บัตรที่แจกแล้ว" เอง ไม่พึ่งผลจากการกดปุ่มแสตมป์ครั้งล่าสุด — Admin ใช้ดูว่ามี queued ค้างอยู่กี่ใบ
-    // เพื่อตัดสินใจเพิ่มโควตา ไม่ต้องกดปุ่มแสตมป์ก็เห็นตัวเลขนี้ได้ (queued ที่เกิดจากการแสตมป์ครั้งก่อนๆ ทั้งหมด)
-    const queuedCount = (stamps || []).filter(function (st) { return st.adSize === b.size && st.status === 'queued'; }).length;
     return {
       size: b.size,
       stores: b.stores,
@@ -247,7 +248,6 @@ function buildBracketSummaries_(data, employeeSummaries, stamps) {
       cardsUsed: cardsUsed,
       cardsRemaining: b.cardQuota - cardsUsed,
       storesActive: storesActive,
-      queuedCount: queuedCount,
     };
   });
 }
