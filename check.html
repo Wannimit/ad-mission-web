@@ -122,7 +122,7 @@
       resultArea.innerHTML = `<div class="card error-card">กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก</div>`;
       return;
     }
-    resultArea.innerHTML = `<div class="loading-state">กำลังตรวจสอบ...</div>`;
+    resultArea.innerHTML = `<div class="loading-state"><div class="loading-spinner"></div>กำลังตรวจสอบ...</div>`;
     let summary;
     try {
       summary = await fetchApi({ mode: 'personal', phone });
