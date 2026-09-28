@@ -75,7 +75,7 @@
       <span class="label">Kubota Care</span>
     </div>
     <div class="hero-title" style="font-size:24px;">เช็คผลงานสะสมแต้มของคุณ</div>
-    <div class="hero-desc">กรอกเบอร์โทรศัพท์ของคุณ เพื่อดูว่าพาลูกค้าโหลดแอป Kubota Care สำเร็จไปแล้วกี่คน</div>
+    <div class="hero-desc">กรอกเบอร์โทรศัพท์ของคุณ เพื่อตรวจสอบจำนวนลูกค้าที่โหลดแอป KUBOTA Care สำเร็จ</div>
   </div>
 </div>
 
@@ -186,7 +186,7 @@
           <div class="progress-grid">
             <div><div class="lbl">ลูกค้าที่แนะนำสำเร็จ</div><div class="val num">${count} <span style="font-size:12px; font-weight:500; color:var(--muted);">คน</span></div></div>
             <div><div class="lbl">บัตรที่ได้รับ</div><div class="val num" style="color:var(--orange);">${cardsEarned} <span style="font-size:12px; font-weight:500; color:var(--muted);">ใบ</span></div></div>
-            <div><div class="lbl">ถึงเพดานสูงสุด</div><div class="val num">${cardsEarned}<span style="font-size:13px; color:var(--muted-2);">/${campaign.maxCardsPerPerson}</span> <span style="font-size:12px; font-weight:500; color:var(--muted);">ใบ</span></div></div>
+            <div><div class="lbl">จำนวนบัตรสูงสุดที่จะได้รับ</div><div class="val num">${cardsEarned}<span style="font-size:13px; color:var(--muted-2);">/${campaign.maxCardsPerPerson}</span> <span style="font-size:12px; font-weight:500; color:var(--muted);">ใบ</span></div></div>
           </div>
           ${count >= campaign.maxReferralsPerPerson ? `
             <div style="font-size:13px; font-weight:600; color:var(--teal-text);">ถึงเพดานสูงสุดแล้ว 🎉 ไม่สามารถสะสมเพิ่มได้ในกิจกรรมนี้</div>

@@ -113,7 +113,7 @@ function loadAll_() {
         customerName: r['name'],
         submittedAt: formatDate_(r['submitted_at']),
         referrerPhone: String(r['comment_care'] || '').replace(/\D/g, ''), // เบอร์โทรของช่างผู้แนะนำ
-        adSize: r['AD_size'],
+        adSize: r['AD_Size'],
         adName: r['AD'],
       };
     })
