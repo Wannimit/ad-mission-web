@@ -106,17 +106,36 @@ function formatDate_(v) {
 }
 
 function loadAll_() {
+  const members = readSheetAsObjects_(SHEET_MEMBERS).map(function (m) {
+    return {
+      name: m['Name'],
+      phone: String(m['phone'] || '').replace(/\D/g, ''),
+    };
+  });
+  const memberPhones = new Set(members.map(function (m) { return m.phone; }).filter(function (p) { return p.length >= 9; }));
+
+  // เบอร์ผู้แนะนำบางแถวผู้กรอกใส่ไว้ใน comment_care บางแถวดันไปใส่ไว้ใน suggestion_care แทน (สลับคอลัมน์กัน)
+  // เลยต้องลองทั้งสองคอลัมน์ — ใช้ค่าไหนก็ได้ที่ digit-strip แล้วตรงกับเบอร์จริงในชีต "พนักงานที่เข้าร่วม"
+  // เท่านั้น (ไม่ใช่แค่เช็กความยาว 9-10 หลักเฉยๆ) กันเบอร์มั่วที่บังเอิญความยาวตรงแต่ไม่มีตัวตนจริง
+  function extractReferrerPhone_(commentCare, suggestionCare) {
+    const fromComment = String(commentCare || '').replace(/\D/g, '');
+    if (memberPhones.has(fromComment)) return fromComment;
+    const fromSuggestion = String(suggestionCare || '').replace(/\D/g, '');
+    if (memberPhones.has(fromSuggestion)) return fromSuggestion;
+    return '';
+  }
+
   const registrations = readSheetAsObjects_(SHEET_REGISTRATIONS)
     .map(function (r) {
       return {
         customerName: r['name'],
         submittedAt: formatDate_(r['submitted_at']),
-        referrerPhone: String(r['comment_care'] || '').replace(/\D/g, ''), // เบอร์โทรของช่างผู้แนะนำ
+        referrerPhone: extractReferrerPhone_(r['comment_care'], r['suggestion_care']),
         adSize: r['AD_Size'],
         adName: r['AD'],
       };
     })
-    .filter(function (r) { return r.referrerPhone.length >= 9 && r.referrerPhone.length <= 10; }); // ต้องเป็นเบอร์โทร 9-10 หลักเท่านั้น — ตัดทิ้งทั้งแถวว่างและแถวที่ comment_care ผิดรูปแบบ (เช่น mapping พลาดจาก pipeline ต้นทาง ได้ค่าที่ไม่ใช่เบอร์โทรมาแทน)
+    .filter(function (r) { return r.referrerPhone.length >= 9 && r.referrerPhone.length <= 10; }); // ตัดทิ้งแถวที่หาเบอร์ผู้แนะนำที่ตรงกับพนักงานจริงไม่เจอเลยทั้งสองคอลัมน์ (ถือเป็นเรื่องปกติ ไม่ใช่ error)
 
   const brackets = readSheetAsObjects_(SHEET_CRITERIA).map(function (b) {
     return {
@@ -125,13 +144,6 @@ function loadAll_() {
       cardQuota: Number(b['บัตรโควตา'] || 0),
       userTarget: Number(b['ผู้ใช้ใหม่เป้า'] || 0),
       budget: Number(b['งบประมาณบาท'] || 0),
-    };
-  });
-
-  const members = readSheetAsObjects_(SHEET_MEMBERS).map(function (m) {
-    return {
-      name: m['Name'],
-      phone: String(m['phone'] || '').replace(/\D/g, ''),
     };
   });
 
