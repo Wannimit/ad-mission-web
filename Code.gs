@@ -110,6 +110,7 @@ function loadAll_() {
     return {
       name: m['Name'],
       phone: String(m['phone'] || '').replace(/\D/g, ''),
+      store: m['ร้านผู้แทนจำหน่าย'],
     };
   });
   const memberPhones = new Set(members.map(function (m) { return m.phone; }).filter(function (p) { return p.length >= 9; }));
@@ -205,6 +206,32 @@ function buildEmployeeSummaries_(data, stamps) {
   return summaries;
 }
 
+// ---------- เขียนชื่อร้าน (AD) ของผู้แนะนำลงคอลัมน์ F ของ "ผลการสมัคร" เป็นค่าจริง (ไม่ใช่สูตร) ----------
+// เหตุผล: F เดิมเป็น ARRAYFORMULA ตัวเดียวครอบทั้งคอลัมน์ — ถ้าพิมพ์ทับเซลล์ไหนแม้แค่เซลล์เดียว
+// Sheets จะบล็อกไม่ให้สูตรกระจายทั้งคอลัมน์ทันที ทำให้ทุกแถวพังหมด (เจอปัญหานี้จริงมาแล้ว)
+// เปลี่ยนมาคำนวณแล้วเขียนค่าตรงแทน ใช้ logic เดียวกับ extractReferrerPhone_ ใน loadAll_ (เช็ค
+// comment_care ก่อน แล้ว fallback ไป suggestion_care) ทำให้ไม่ต้องพิมพ์มือเลยแม้แถวที่เบอร์สลับคอลัมน์
+// G (AD_Size) ยังเป็น ARRAYFORMULA เดิมที่ดึงจากคอลัมน์ F อยู่ — ไม่กระทบ เพราะ VLOOKUP อ่านจากค่า F ได้
+// อยู่แล้วไม่ว่า F จะเป็นสูตรหรือค่าจริง
+function syncAdColumn_(data) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGISTRATIONS);
+  const storeByPhone = {};
+  data.members.forEach(function (m) { if (m.phone && !(m.phone in storeByPhone)) storeByPhone[m.phone] = m.store; });
+  const memberPhones = {};
+  data.members.forEach(function (m) { if (m.phone && m.phone.length >= 9) memberPhones[m.phone] = true; });
+
+  const regRows = readSheetAsObjects_(SHEET_REGISTRATIONS);
+  if (regRows.length === 0) return;
+  const adNames = regRows.map(function (r) {
+    const fromComment = String(r['comment_care'] || '').replace(/\D/g, '');
+    if (memberPhones[fromComment]) return storeByPhone[fromComment] || '';
+    const fromSuggestion = String(r['suggestion_care'] || '').replace(/\D/g, '');
+    if (memberPhones[fromSuggestion]) return storeByPhone[fromSuggestion] || '';
+    return '';
+  });
+  sheet.getRange(2, 6, adNames.length, 1).setValues(adNames.map(function (n) { return [n]; }));
+}
+
 // ---------- แสตมป์บัตรอัตโนมัติ: ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันที ----------
 // เรียกทุกครั้งที่มีคนเรียก mode=personal หรือ mode=admin (ไม่ต้องรอแอดมินกดปุ่มอีกต่อไป)
 // ไม่เช็คโควตา bracket ก่อนบันทึกแล้ว (ตามที่ user ตกลง)
@@ -214,6 +241,7 @@ function buildEmployeeSummaries_(data, stamps) {
 // เป็นสูตร ARRAYFORMULA lookup จาก phone เอง (ดูหัวชีต "บัตรที่แจกแล้ว") ถ้าเขียนทับ B-D ด้วย
 // จะไปโดนช่วง spill ของสูตร ทำให้สูตรพัง (#REF!)
 function autoStampNewCards_(data) {
+  syncAdColumn_(data);
   const summaries = buildEmployeeSummaries_(data, []);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_STAMPS);
   if (!sheet) throw new Error('ไม่พบแผ่นงาน: ' + SHEET_STAMPS);
