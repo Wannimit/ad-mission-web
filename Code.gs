@@ -23,6 +23,7 @@
 const SHEET_REGISTRATIONS = 'ผลการสมัคร';
 const SHEET_CRITERIA = 'เกณฑ์';
 const SHEET_MEMBERS = 'พนักงานที่เข้าร่วม';
+const SHEET_AD_SIZE = 'ขนาด AD';
 const SHEET_ADMIN = 'Admin';
 const SHEET_STAMPS = 'บัตรที่แจกแล้ว';
 
@@ -116,10 +117,33 @@ function loadAll_() {
     return {
       name: m['Name'],
       phone: String(m['phone'] || '').replace(/\D/g, ''),
+      // คอลัมน์วันที่ลงทะเบียนเข้าร่วม — ชื่อคอลัมน์จริงในชีตคือ "ประทับเวลา" (ยืนยันแล้วกับ user)
+      joinedAt: formatDate_(m['ประทับเวลา'] || m['Timestamp'] || m['วันที่'] || ''),
     };
   });
 
   return { registrations: registrations, brackets: brackets, members: members };
+}
+
+// ---------- อ่านแผ่นงาน "ขนาด AD": ชื่อร้าน (หัวคอลัมน์ "AD" ถ้าไม่มีใช้คอลัมน์ A), ขนาด, จำนวนพนักงานในร้าน (คอลัมน์ E) ----------
+// อ่านคอลัมน์ E ตามตำแหน่ง (index 4) ตามที่ user ระบุ ไม่ผูกกับชื่อหัวตาราง — ถ้าไม่มีแผ่นงานนี้ไม่ทำให้ admin พัง
+function readAdStores_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_AD_SIZE);
+  if (!sheet) return [];
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const headers = values[0].map(function (h) { return String(h).trim(); });
+  const nameIdx = headers.indexOf('AD') >= 0 ? headers.indexOf('AD') : 0;
+  const sizeIdx = headers.indexOf('AD_Size') >= 0 ? headers.indexOf('AD_Size') : headers.indexOf('AD_size');
+  return values.slice(1)
+    .filter(function (row) { return String(row[nameIdx] || '').trim() !== ''; })
+    .map(function (row) {
+      return {
+        adName: String(row[nameIdx]).trim(),
+        adSize: sizeIdx >= 0 ? row[sizeIdx] : null,
+        staffCount: Number(row[4]) || 0,
+      };
+    });
 }
 
 // ---------- ตรวจรหัสผ่านหน้า admin กับแผ่นงาน "Admin" ----------
@@ -147,7 +171,7 @@ function readStamps_() {
 function buildEmployeeSummaries_(data, stamps) {
   const byPhone = new Map();
   data.members.forEach(function (m) {
-    byPhone.set(m.phone, { name: m.name, phone: m.phone, referrals: [], adName: null, adSize: null });
+    byPhone.set(m.phone, { name: m.name, phone: m.phone, joinedAt: m.joinedAt, referrals: [], adName: null, adSize: null });
   });
   data.registrations.forEach(function (r) {
     const s = byPhone.get(r.referrerPhone);
@@ -163,6 +187,7 @@ function buildEmployeeSummaries_(data, stamps) {
     summaries.push({
       name: s.name,
       phone: s.phone,
+      joinedAt: s.joinedAt,
       adName: s.adName,
       adSize: s.adSize,
       referrals: s.referrals,
@@ -376,6 +401,7 @@ function buildAdminSummary() {
       name: s.name,
       adName: s.adName,
       adSize: s.adSize,
+      joinedAt: s.joinedAt, // วันที่ลงทะเบียนเข้าร่วม (จากชีต "พนักงานที่เข้าร่วม") — ใช้ทำกราฟแท่งรายวัน
       referrals: s.referrals.map(function (r) { return r.submittedAt; }),
     };
   });
@@ -384,6 +410,7 @@ function buildAdminSummary() {
     campaign: CAMPAIGN,
     totalMembers: data.members.length,
     brackets: data.brackets, // { size, stores, cardQuota, userTarget, budget } — ค่าคงที่ตามเกณฑ์ ไม่ผูกกับตัวกรอง
+    adStores: readAdStores_(), // { adName, adSize, staffCount } จากแผ่นงาน "ขนาด AD" (staffCount = คอลัมน์ E)
     employees: employees,
     generatedAt: new Date().toISOString(),
   };

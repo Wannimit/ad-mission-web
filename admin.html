@@ -6,6 +6,19 @@
 <title>AD Mission – ภาพรวมแคมเปญ</title>
 <link rel="stylesheet" href="style.css">
 <style>
+  /* ขนาดตัวอักษรเฉพาะหน้า admin — override คลาสร่วมจาก style.css โดยไม่แตะ style.css (กันกระทบ check.html) */
+  .pill { font-size: 12px; }
+  .hero-badge .logo, .hero-badge span.label { font-size: 12px; }
+  .hero-title { font-size: 23px; }
+  .hero-desc { font-size: 14px; }
+  .hero-sync { font-size: 12.5px; }
+  .section-title { font-size: 16.5px; }
+  .section-sub { font-size: 13px; }
+  .notice-banner { font-size: 13px; }
+  @media (min-width: 860px) {
+    .hero-title { font-size: 31px; }
+    .hero-desc { font-size: 15.5px; }
+  }
   .kpi-value { display: flex; align-items: baseline; gap: 6px; }
   .kpi-value .big { font-size: 24px; font-weight: 800; }
   .kpi-value .small { font-size: 13px; color: var(--muted); }
@@ -69,6 +82,17 @@
   .stamp-btn:hover { background: #33302B; }
   .stamp-btn:disabled { opacity: .5; cursor: default; }
   .stamp-result { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .refresh-btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35); border-radius: 20px; padding: 7px 14px; color: #fff; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .refresh-btn:hover { background: rgba(255,255,255,.3); }
+  .refresh-btn:disabled { opacity: .6; cursor: default; }
+  .refresh-btn.loading svg { animation: loading-spin .7s linear infinite; }
+  .ad-table { width: 100%; border-collapse: collapse; }
+  .ad-table th, .ad-table td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; font-size: 13.5px; }
+  .ad-table th { background: var(--bg); font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; cursor: pointer; user-select: none; }
+  .ad-table th:hover { color: var(--ink); }
+  .ad-table th .arrow { display: inline-block; width: 10px; opacity: .5; }
+  .ad-table td.num-cell, .ad-table th.num-cell { text-align: right; }
+  .ad-table tfoot td { font-weight: 700; background: var(--bg); }
 </style>
 </head>
 <body>
@@ -96,7 +120,13 @@
         <div class="hero-title">ภาพรวมแคมเปญแนะนำลูกค้าโหลดแอป</div>
         <div class="hero-desc">ติดตามความคืบหน้างบประมาณ ยอดลงทะเบียน และการกระจายบัตรรางวัลของช่างทั่วทั้ง <span id="heroStoreCount"></span> ร้าน</div>
       </div>
-      <div class="hero-sync" id="heroSync"></div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+        <div class="hero-sync" id="heroSync"></div>
+        <button class="refresh-btn" id="refreshBtn" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 4v5h-5"></path></svg>
+          <span id="refreshLabel">รีเฟรชข้อมูล</span>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -166,6 +196,22 @@
       <div><span class="dot" style="background:var(--orange);"></span>Register/วัน</div>
       <div><span class="dot" style="background:var(--teal);"></span>เสาร์-อาทิตย์</div>
     </div>
+  </div>
+
+  <div class="section-title">พนักงานที่เข้าร่วม รายวัน</div>
+  <div class="card" style="padding:20px;">
+    <div class="section-sub" id="signupTrendSub" style="margin-top:0;"></div>
+    <div class="trend-wrap" id="signupTrendChart"></div>
+    <div class="trend-legend">
+      <div><span class="dot" style="background:var(--lime);"></span>ลงทะเบียนเข้าร่วม/วัน</div>
+      <div><span class="dot" style="background:var(--teal);"></span>เสาร์-อาทิตย์</div>
+    </div>
+  </div>
+
+  <div class="section-title">พนักงานที่เข้าร่วมแยกตาม AD</div>
+  <div class="card" style="padding:18px 20px;">
+    <div class="section-sub" style="margin-top:0;">นับเฉพาะพนักงานที่แนะนำลูกค้าสำเร็จอย่างน้อย 1 ครั้งแล้ว (จึงจะรู้ว่าสังกัด AD ไหน)</div>
+    <div id="adTable"></div>
   </div>
 
   <div class="grid-2 desktop-split" style="margin-top:20px;">
@@ -248,6 +294,31 @@
   document.getElementById('gateSubmit').addEventListener('click', () => tryGate(document.getElementById('gatePassword').value));
   document.getElementById('gatePassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryGate(document.getElementById('gatePassword').value); });
   document.getElementById('gatePassword').focus();
+
+  document.getElementById('refreshBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('refreshBtn');
+    const label = document.getElementById('refreshLabel');
+    if (!currentPassword) return;
+    btn.disabled = true;
+    btn.classList.add('loading');
+    label.textContent = 'กำลังโหลด...';
+    try {
+      const latest = await fetchApi({ mode: 'admin', password: currentPassword });
+      if (latest && latest.error) {
+        label.textContent = latest.error === 'UNAUTHORIZED' ? 'รหัสผ่านใช้ไม่ได้แล้ว — โหลดหน้าใหม่' : `ผิดพลาด (${latest.error})`;
+      } else {
+        rawData = latest;
+        setupFilters(latest);
+        applyFiltersAndRender();
+        label.textContent = 'รีเฟรชข้อมูล';
+      }
+    } catch (err) {
+      label.textContent = 'เชื่อมต่อไม่สำเร็จ — ลองใหม่';
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  });
 
   document.getElementById('stampBtn').addEventListener('click', async () => {
     const btn = document.getElementById('stampBtn');
@@ -408,7 +479,7 @@
         const referralCount = days.length;
         const cardsEarned = Math.min(Math.floor(referralCount / campaign.pointsPerCard), campaign.maxCardsPerPerson);
         return {
-          name: e.name, adName: e.adName, adSize: e.adSize,
+          name: e.name, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt,
           referralCount, cardsEarned,
           bahtEarned: cardsEarned * campaign.cardValueBaht,
           atCap: referralCount >= campaign.maxReferralsPerPerson,
@@ -432,6 +503,42 @@
       out.push({ date: key, count: counts[key] || 0, isWeekend: dow === 0 || dow === 6 });
     }
     return out;
+  }
+
+  // ---- จำนวนพนักงานที่ลงทะเบียนเข้าร่วม (ชีต "พนักงานที่เข้าร่วม") รายวัน — ไม่เกี่ยวกับยอด referral ----
+  function buildSignupTrend(employees) {
+    const days = employees.map(e => String(e.joinedAt || '').slice(0, 10)).filter(Boolean);
+    if (days.length === 0) return [];
+    const start = days.reduce((a, b) => a < b ? a : b);
+    const end = days.reduce((a, b) => a > b ? a : b);
+    const counts = {};
+    days.forEach(day => { counts[day] = (counts[day] || 0) + 1; });
+    const out = [];
+    for (let d = new Date(start + 'T00:00:00Z'); d <= new Date(end + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) {
+      const key = d.toISOString().slice(0, 10);
+      const dow = d.getUTCDay();
+      out.push({ date: key, count: counts[key] || 0, isWeekend: dow === 0 || dow === 6 });
+    }
+    return out;
+  }
+
+  // ---- นับจำนวนพนักงานที่เข้าร่วม (มี referral สำเร็จอย่างน้อย 1) แยกตาม AD (ร้าน) ----
+  // adName/adSize ของพนักงานจะถูกกำหนดจาก referral ครั้งแรกเท่านั้น (ดู buildEmployeeSummaries_ ฝั่ง backend)
+  // เลยมีแค่พนักงานที่ "เข้าร่วมแล้ว" (referralCount > 0) เท่านั้นที่รู้ว่าอยู่ AD ไหน
+  function buildAdTable(employees) {
+    const byAd = new Map();
+    employees.filter(e => e.adName && e.referralCount > 0).forEach(e => {
+      if (!byAd.has(e.adName)) byAd.set(e.adName, { adName: e.adName, adSize: e.adSize, participating: 0, totalReferrals: 0 });
+      const row = byAd.get(e.adName);
+      row.participating += 1;
+      row.totalReferrals += e.referralCount;
+    });
+    const staffByAd = new Map((rawData.adStores || []).map(s => [s.adName, s.staffCount]));
+    byAd.forEach(row => {
+      row.staffCount = staffByAd.get(row.adName) || 0;
+      row.participationPct = pct(row.participating, row.staffCount);
+    });
+    return Array.from(byAd.values()).sort((a, b) => b.participating - a.participating || a.adName.localeCompare(b.adName, 'th'));
   }
 
   function applyFiltersAndRender() {
@@ -465,6 +572,8 @@
     }, totalBudget, totalUserTarget, totalCardQuota);
 
     renderTrend(buildTrendFromEmployees(employees));
+    renderSignupTrend(buildSignupTrend(employees));
+    renderAdTable(buildAdTable(employees));
 
     renderBrackets(selectedBracketConfigs.map(b => {
       const empsInBracket = employees.filter(e => e.adSize === b.size);
@@ -535,6 +644,99 @@
     document.getElementById('trendChart').innerHTML = `<div class="trend-bars">` + trend.map(d => `
       <div class="trend-bar" title="${d.date}: ${d.count} ครั้ง" style="height:${Math.max(4, (d.count / trendMax) * 100)}%; background:${d.isWeekend ? 'var(--teal)' : 'var(--orange)'};"></div>
     `).join('') + `</div>`;
+  }
+
+  // ---- Signup trend (พนักงานที่เข้าร่วม รายวัน) ----
+  function renderSignupTrend(trend) {
+    const trendAvg = trend.length ? Math.round((trend.reduce((s, d) => s + d.count, 0) / trend.length) * 10) / 10 : 0;
+    const trendMax = Math.max(1, ...trend.map(d => d.count));
+    document.getElementById('signupTrendSub').textContent =
+      trend.length ? `${trend[0].date} – ${trend[trend.length - 1].date} · เฉลี่ย ${trendAvg} คน/วัน` : 'ยังไม่มีข้อมูลวันที่ลงทะเบียน';
+    document.getElementById('signupTrendChart').innerHTML = `<div class="trend-bars">` + trend.map(d => `
+      <div class="trend-bar" title="${d.date}: ${d.count} คน" style="height:${Math.max(4, (d.count / trendMax) * 100)}%; background:${d.isWeekend ? 'var(--teal)' : 'var(--lime)'};"></div>
+    `).join('') + `</div>`;
+  }
+
+  // ---- ตาราง AD เทียบกับพนักงานที่เข้าร่วม (sort ได้ที่หัวตาราง + มี total ด้านล่าง) ----
+  let adTableRows = [];
+  const adTableSort = { key: 'participating', dir: 'desc' };
+  const AD_TABLE_COLS = [
+    { key: 'adName', label: 'AD (ร้าน)', numeric: false },
+    { key: 'adSize', label: 'ขนาด AD', numeric: false },
+    { key: 'staffCount', label: 'พนักงานในร้าน', numeric: true },
+    { key: 'participating', label: 'พนักงานเข้าร่วม', numeric: true },
+    { key: 'participationPct', label: '% เข้าร่วม', numeric: true },
+    { key: 'totalReferrals', label: 'Register รวม', numeric: true },
+  ];
+
+  function sortAdTable(key) {
+    const col = AD_TABLE_COLS.find(c => c.key === key);
+    if (adTableSort.key === key) {
+      adTableSort.dir = adTableSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      adTableSort.key = key;
+      adTableSort.dir = col.numeric ? 'desc' : 'asc';
+    }
+    renderAdTableRows();
+  }
+
+  function renderAdTable(rows) {
+    adTableRows = rows;
+    renderAdTableRows();
+  }
+
+  function renderAdTableRows() {
+    const el = document.getElementById('adTable');
+    if (adTableRows.length === 0) {
+      el.innerHTML = `<div class="section-sub" style="margin:0;">ยังไม่มีพนักงานที่เข้าร่วม (มี referral สำเร็จ) ในตัวกรองนี้</div>`;
+      return;
+    }
+    const { key, dir } = adTableSort;
+    const col = AD_TABLE_COLS.find(c => c.key === key);
+    const sorted = adTableRows.slice().sort((a, b) => {
+      const va = a[key], vb = b[key];
+      const cmp = col.numeric ? va - vb : String(va || '').localeCompare(String(vb || ''), 'th');
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    const totalParticipating = adTableRows.reduce((s, r) => s + r.participating, 0);
+    const totalReferrals = adTableRows.reduce((s, r) => s + r.totalReferrals, 0);
+    const totalStaff = adTableRows.reduce((s, r) => s + r.staffCount, 0);
+    const staffCell = (r) => r.staffCount > 0 ? `${r.staffCount} คน` : '—';
+    const pctCell = (r) => r.staffCount > 0 ? `${r.participationPct}%` : '—';
+    const arrow = (k) => k === key ? `<span class="arrow">${dir === 'asc' ? '▲' : '▼'}</span>` : `<span class="arrow"></span>`;
+
+    el.innerHTML = `
+      <table class="ad-table">
+        <thead>
+          <tr>
+            ${AD_TABLE_COLS.map(c => `
+              <th class="${c.numeric ? 'num-cell' : ''}" onclick="sortAdTable('${c.key}')">${c.label} ${arrow(c.key)}</th>
+            `).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${sorted.map(r => `
+            <tr>
+              <td style="font-weight:600;">${r.adName}</td>
+              <td style="color:var(--muted);">${r.adSize || '—'}</td>
+              <td class="num-cell num">${staffCell(r)}</td>
+              <td class="num-cell num">${r.participating} คน</td>
+              <td class="num-cell num">${pctCell(r)}</td>
+              <td class="num-cell num" style="color:var(--muted);">${r.totalReferrals}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">รวม ${adTableRows.length} AD</td>
+            <td class="num-cell num">${totalStaff} คน</td>
+            <td class="num-cell num">${totalParticipating} คน</td>
+            <td class="num-cell num">${totalStaff > 0 ? pct(totalParticipating, totalStaff) + '%' : '—'}</td>
+            <td class="num-cell num">${totalReferrals}</td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
   }
 
   // ---- Bracket bars ----
