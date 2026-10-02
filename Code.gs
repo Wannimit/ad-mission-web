@@ -4,36 +4,20 @@
  * Apps Script ผูกกับ Google Sheet "Kubota Care tracking" โดยตรง (Extensions > Apps Script)
  * Deploy เป็น Web App แล้วให้ check.html / admin.html เรียกผ่าน fetch แทนการฝัง data.js
  *
- * เหตุผล: data.js เดิมฝังข้อมูลเบอร์โทร + ผลงานของพนักงาน "ทุกคน" ไว้ฝั่ง client
+ * เหตุผล: data.js เดิมฝังข้อมูล phone + ผลงานของพนักงาน "ทุกคน" ไว้ฝั่ง client
  * ใครเปิด dev tools ก็เห็นข้อมูลคนอื่นได้หมด — ไฟล์นี้แก้ปัญหานั้นโดยให้ server
  * เป็นคนกรองข้อมูลก่อนส่ง ไม่ส่ง dataset เต็มไปที่ client อีกต่อไป อ่านสดจากชีตทุกครั้ง (real-time)
  *
  * Endpoints (GET ทั้งหมด):
- *   ?mode=personal&phone=0812345678      -> ข้อมูลเฉพาะของพนักงานคนนั้น (ใช้ใน check.html)
- *   ?mode=admin&password=...             -> ภาพรวมทั้งแคมเปญ ไม่มีเบอร์โทร/ข้อมูลระบุตัวตนอื่น (ใช้ใน admin.html)
+ *   ?mode=personal&phone=1234567890123     -> ข้อมูลเฉพาะของพนักงานคนนั้น (ใช้ใน check.html)
+ *   ?mode=admin&password=...             -> ภาพรวมทั้งแคมเปญ ไม่มี phone/ข้อมูลระบุตัวตนอื่น (ใช้ใน admin.html)
  *   ?mode=stamp&password=...             -> Admin กดปุ่ม "แสตมป์อัตโนมัติ" เพื่อล็อกจำนวนบัตรที่ได้สิทธิ์จริง
  *                                            เรียงตามเวลาที่ครบ 4 register จริง (submitted_at) ข้ามทุกคน/ทุกร้าน
  *                                            (กันโควตา bracket แจกเกิน) — idempotent เรียกซ้ำได้ไม่แสตมป์ซ้ำ
  *
- * ก่อนใช้งาน ตรวจชื่อแผ่นงาน 5 อันด้านล่างให้ตรงกับชีตจริง (ตอนนี้ตรงกับที่อ่านได้จากชีตจริงแล้ว
- * ณ วันที่เขียนโค้ดนี้ — 2569-09-22):
- *   "ผลการสมัคร"        columns: kubota_id, registration_no, name, submitted_at, comment_care,
- *                                 suggestion_care, submitted_at_care, AD_size, AD
- *                        (comment_care = เบอร์โทรศัพท์ของช่างผู้แนะนำ — เปลี่ยนจาก cid มาเป็นเบอร์โทร
- *                        ตามที่ตกลงกัน ณ วันที่แก้โค้ดนี้ จับคู่กับคอลัมน์ phone ในแผ่นงาน
- *                        "พนักงานที่เข้าร่วม" — ⚠️ ต้องให้ระบบต้นทางที่ feed ค่าเข้า comment_care
- *                        ส่งเบอร์โทรจริงมาด้วย ไม่งั้นจับคู่ไม่ได้เหมือนตอนที่เปลี่ยนจากชื่อช่างเป็น cid)
- *   "เกณฑ์"              columns: AD_size, จำนวนร้าน, บัตรโควตา, ผู้ใช้ใหม่เป้า, งบประมาณบาท
- *   "พนักงานที่เข้าร่วม"  columns: No., Name, phone
- *   "Admin"              columns: label, password
- *                        (รายชื่อรหัสผ่านที่ใช้เข้าหน้า admin.html ได้ — เพิ่ม/ลบแถวในนี้ได้เลย
- *                        ไม่ต้องแก้โค้ด ตรวจสอบผ่าน ?mode=admin&password=... เท่านั้น ไม่มี endpoint
- *                        ไหนคืนค่ารหัสผ่านกลับออกไปให้ client เห็น)
- *   "บัตรที่แจกแล้ว"     columns: phone, name, AD, AD_Size, stampedAt
- *                        (phone + stampedAt เท่านั้นที่ autoStampNewCards_() เขียนจริง — name/AD/AD_Size
- *                        เป็นสูตร ARRAYFORMULA lookup จาก phone เอง ห้ามพิมพ์ค่าทับคอลัมน์เหล่านี้มือ
- *                        เดี๋ยวชนกับ spill ของสูตรแล้วพังเป็น #REF! — 1 แถว = 1 บัตรที่บันทึกแล้วจริง
- *                        cardsEarned ที่ส่งออกทุก mode คำนวณสดจาก referralCount เสมอ ไม่ได้นับจากชีตนี้)
+ * referrerPhone อ่านจากคอลัมน์ comment_care ของชีต "ผลการสมัคร" เท่านั้น (ไม่ใช้ suggestion_care แล้ว
+ * — เคยลอง fallback ไป suggestion_care แต่ทำให้ชีตปัญหาซับซ้อนขึ้นจนพัง เลยตัดสินใจตัดออก)
+ * AD/AD_Size (คอลัมน์ F/G ของชีต "ผลการสมัคร") เป็น ARRAYFORMULA lookup จาก comment_care — ห้ามแก้มือ
  */
 
 const SHEET_REGISTRATIONS = 'ผลการสมัคร';
@@ -106,37 +90,17 @@ function formatDate_(v) {
 }
 
 function loadAll_() {
-  const members = readSheetAsObjects_(SHEET_MEMBERS).map(function (m) {
-    return {
-      name: m['Name'],
-      phone: String(m['phone'] || '').replace(/\D/g, ''),
-      store: m['ร้านผู้แทนจำหน่าย'],
-    };
-  });
-  const memberPhones = new Set(members.map(function (m) { return m.phone; }).filter(function (p) { return p.length >= 9; }));
-
-  // เบอร์ผู้แนะนำบางแถวผู้กรอกใส่ไว้ใน comment_care บางแถวดันไปใส่ไว้ใน suggestion_care แทน (สลับคอลัมน์กัน)
-  // เลยต้องลองทั้งสองคอลัมน์ — ใช้ค่าไหนก็ได้ที่ digit-strip แล้วตรงกับเบอร์จริงในชีต "พนักงานที่เข้าร่วม"
-  // เท่านั้น (ไม่ใช่แค่เช็กความยาว 9-10 หลักเฉยๆ) กันเบอร์มั่วที่บังเอิญความยาวตรงแต่ไม่มีตัวตนจริง
-  function extractReferrerPhone_(commentCare, suggestionCare) {
-    const fromComment = String(commentCare || '').replace(/\D/g, '');
-    if (memberPhones.has(fromComment)) return fromComment;
-    const fromSuggestion = String(suggestionCare || '').replace(/\D/g, '');
-    if (memberPhones.has(fromSuggestion)) return fromSuggestion;
-    return '';
-  }
-
   const registrations = readSheetAsObjects_(SHEET_REGISTRATIONS)
     .map(function (r) {
       return {
         customerName: r['name'],
         submittedAt: formatDate_(r['submitted_at']),
-        referrerPhone: extractReferrerPhone_(r['comment_care'], r['suggestion_care']),
+        referrerPhone: String(r['comment_care'] || '').replace(/\D/g, ''), // เบอร์โทรของช่างผู้แนะนำ
         adSize: r['AD_Size'],
         adName: r['AD'],
       };
     })
-    .filter(function (r) { return r.referrerPhone.length >= 9 && r.referrerPhone.length <= 10; }); // ตัดทิ้งแถวที่หาเบอร์ผู้แนะนำที่ตรงกับพนักงานจริงไม่เจอเลยทั้งสองคอลัมน์ (ถือเป็นเรื่องปกติ ไม่ใช่ error)
+    .filter(function (r) { return r.referrerPhone.length >= 9 && r.referrerPhone.length <= 10; }); // ต้องเป็นเบอร์โทร 9-10 หลักเท่านั้น
 
   const brackets = readSheetAsObjects_(SHEET_CRITERIA).map(function (b) {
     return {
@@ -145,6 +109,13 @@ function loadAll_() {
       cardQuota: Number(b['บัตรโควตา'] || 0),
       userTarget: Number(b['ผู้ใช้ใหม่เป้า'] || 0),
       budget: Number(b['งบประมาณบาท'] || 0),
+    };
+  });
+
+  const members = readSheetAsObjects_(SHEET_MEMBERS).map(function (m) {
+    return {
+      name: m['Name'],
+      phone: String(m['phone'] || '').replace(/\D/g, ''),
     };
   });
 
@@ -164,8 +135,6 @@ function eligibleCardsFor_(count) {
 }
 
 // ---------- อ่านชีต "บัตรที่แจกแล้ว" นับจำนวนแถวต่อเบอร์โทร ----------
-// name/AD/AD_Size ในชีตเป็นสูตร ARRAYFORMULA lookup จาก phone เองแล้ว (ดูหัวชีต) — ที่นี่อ่านแค่
-// phone/stampedAt ที่สคริปต์เป็นคนเขียนจริงพอสำหรับนับจำนวนบัตรต่อคน
 function readStamps_() {
   return readSheetAsObjects_(SHEET_STAMPS).map(function (r) {
     return {
@@ -206,42 +175,15 @@ function buildEmployeeSummaries_(data, stamps) {
   return summaries;
 }
 
-// ---------- เขียนชื่อร้าน (AD) ของผู้แนะนำลงคอลัมน์ F ของ "ผลการสมัคร" เป็นค่าจริง (ไม่ใช่สูตร) ----------
-// เหตุผล: F เดิมเป็น ARRAYFORMULA ตัวเดียวครอบทั้งคอลัมน์ — ถ้าพิมพ์ทับเซลล์ไหนแม้แค่เซลล์เดียว
-// Sheets จะบล็อกไม่ให้สูตรกระจายทั้งคอลัมน์ทันที ทำให้ทุกแถวพังหมด (เจอปัญหานี้จริงมาแล้ว)
-// เปลี่ยนมาคำนวณแล้วเขียนค่าตรงแทน ใช้ logic เดียวกับ extractReferrerPhone_ ใน loadAll_ (เช็ค
-// comment_care ก่อน แล้ว fallback ไป suggestion_care) ทำให้ไม่ต้องพิมพ์มือเลยแม้แถวที่เบอร์สลับคอลัมน์
-// G (AD_Size) ยังเป็น ARRAYFORMULA เดิมที่ดึงจากคอลัมน์ F อยู่ — ไม่กระทบ เพราะ VLOOKUP อ่านจากค่า F ได้
-// อยู่แล้วไม่ว่า F จะเป็นสูตรหรือค่าจริง
-function syncAdColumn_(data) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGISTRATIONS);
-  const storeByPhone = {};
-  data.members.forEach(function (m) { if (m.phone && !(m.phone in storeByPhone)) storeByPhone[m.phone] = m.store; });
-  const memberPhones = {};
-  data.members.forEach(function (m) { if (m.phone && m.phone.length >= 9) memberPhones[m.phone] = true; });
-
-  const regRows = readSheetAsObjects_(SHEET_REGISTRATIONS);
-  if (regRows.length === 0) return;
-  const adNames = regRows.map(function (r) {
-    const fromComment = String(r['comment_care'] || '').replace(/\D/g, '');
-    if (memberPhones[fromComment]) return storeByPhone[fromComment] || '';
-    const fromSuggestion = String(r['suggestion_care'] || '').replace(/\D/g, '');
-    if (memberPhones[fromSuggestion]) return storeByPhone[fromSuggestion] || '';
-    return '';
-  });
-  sheet.getRange(2, 6, adNames.length, 1).setValues(adNames.map(function (n) { return [n]; }));
-}
-
 // ---------- แสตมป์บัตรอัตโนมัติ: ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันที ----------
 // เรียกทุกครั้งที่มีคนเรียก mode=personal หรือ mode=admin (ไม่ต้องรอแอดมินกดปุ่มอีกต่อไป)
 // ไม่เช็คโควตา bracket ก่อนบันทึกแล้ว (ตามที่ user ตกลง)
 // idempotent: เช็ก currentStamped ต่อเบอร์โทรก่อนเสมอ เรียกซ้ำได้ไม่แสตมป์ซ้ำ
 //
-// เขียนแค่คอลัมน์ A (phone) และ E (stampedAt) เท่านั้น — B (name), C (AD), D (AD_Size)
+// เขียนแค่คอลัมน์ A (phone), E (stampedAt), F (บัตรใบที่) เท่านั้น — B (name), C (AD), D (AD_Size)
 // เป็นสูตร ARRAYFORMULA lookup จาก phone เอง (ดูหัวชีต "บัตรที่แจกแล้ว") ถ้าเขียนทับ B-D ด้วย
 // จะไปโดนช่วง spill ของสูตร ทำให้สูตรพัง (#REF!)
 function autoStampNewCards_(data) {
-  syncAdColumn_(data);
   const summaries = buildEmployeeSummaries_(data, []);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_STAMPS);
   if (!sheet) throw new Error('ไม่พบแผ่นงาน: ' + SHEET_STAMPS);
@@ -424,10 +366,6 @@ function syncRegistrationsFromExcelOnline() {
 }
 
 // ---------- mode=admin: ภาพรวมล้วนๆ ไม่มีเบอร์โทร ----------
-// ส่ง "brackets" เป็นค่าคงที่ตามเกณฑ์เท่านั้น (ไม่คำนวณ cardsUsed/storesActive ที่นี่แล้ว) และส่ง
-// "employees" เป็นรายคน พร้อม timestamp ของทุก referral (ไม่มีชื่อลูกค้า/เบอร์โทรปน) ให้ฝั่ง client
-// เอาไปคำนวณ KPI/leaderboard/trend ใหม่เองได้ทันทีตามตัวกรอง (ช่วงวันที่/Bracket/ร้าน) โดยไม่ต้องยิง
-// request ใหม่ทุกครั้งที่เปลี่ยนตัวกรอง
 function buildAdminSummary() {
   const data = loadAll_();
   autoStampNewCards_(data); // ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันทีทุกครั้งที่แอดมินเปิดหน้านี้
