@@ -131,10 +131,10 @@ function readAdStores_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_AD_SIZE);
   if (!sheet) return [];
   const values = sheet.getDataRange().getValues();
-  // แผ่นงานนี้มีแถวชื่อเรื่องอยู่บนหัวตาราง — หาแถวหัวตารางจากคอลัมน์ที่มีคำว่า "ชื่อร้าน" แทนการเดาว่าเป็นแถวแรก
+  // แผ่นงานนี้มีแถวชื่อเรื่องอยู่บนหัวตาราง (ซึ่งมีคำว่า "ชื่อร้าน" ปนอยู่ในประโยคด้วย) — หาแถวหัวตารางจากเซลล์ที่เป็น "Bracket" เป๊ะๆ
   let headerRow = -1;
   for (let i = 0; i < Math.min(values.length, 10); i++) {
-    if (values[i].some(function (c) { return String(c).indexOf('ชื่อร้าน') >= 0; })) { headerRow = i; break; }
+    if (values[i].some(function (c) { return String(c).trim() === 'Bracket'; })) { headerRow = i; break; }
   }
   if (headerRow < 0) return [];
   const headers = values[headerRow].map(function (h) { return String(h).trim(); });
@@ -142,7 +142,7 @@ function readAdStores_() {
     for (let i = 0; i < headers.length; i++) if (pred(headers[i])) return i;
     return fallback;
   }
-  const nameIdx = findCol(function (h) { return h.indexOf('ชื่อร้าน') >= 0; }, 3);
+  const nameIdx = findCol(function (h) { return h.indexOf('ชื่อร้าน') === 0; }, 3);
   const sizeIdx = findCol(function (h) { return h === 'Bracket' || h === 'AD_Size' || h === 'AD_size'; }, 0);
   const staffIdx = findCol(function (h) { return h.indexOf('จำนวนช่าง') >= 0; }, 4);
   return values.slice(headerRow + 1)
