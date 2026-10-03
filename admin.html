@@ -86,6 +86,8 @@
   .refresh-btn:hover { background: rgba(255,255,255,.3); }
   .refresh-btn:disabled { opacity: .6; cursor: default; }
   .refresh-btn.loading svg { animation: loading-spin .7s linear infinite; }
+  .export-btn { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 20px; padding: 7px 14px; color: var(--ink); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .export-btn:hover { background: var(--bg); }
   .ad-table { width: 100%; border-collapse: collapse; }
   .ad-table th, .ad-table td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; font-size: 13.5px; }
   .ad-table th { background: var(--bg); font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; cursor: pointer; user-select: none; }
@@ -210,7 +212,13 @@
 
   <div class="section-title">พนักงานที่เข้าร่วมแยกตาม AD</div>
   <div class="card" style="padding:18px 20px;">
-    <div class="section-sub" style="margin-top:0;">นับเฉพาะพนักงานที่แนะนำลูกค้าสำเร็จอย่างน้อย 1 ครั้งแล้ว (จึงจะรู้ว่าสังกัด AD ไหน)</div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+      <div class="section-sub" style="margin-top:0;">นับเฉพาะพนักงานที่แนะนำลูกค้าสำเร็จอย่างน้อย 1 ครั้งแล้ว (จึงจะรู้ว่าสังกัด AD ไหน)</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="export-btn" type="button" onclick="exportAdTable()">⬇ Export ตาราง AD (CSV)</button>
+        <button class="export-btn" type="button" onclick="exportEmployees()">⬇ Export รายชื่อพนักงาน (CSV)</button>
+      </div>
+    </div>
     <div id="adTable"></div>
   </div>
 
@@ -250,6 +258,7 @@
   }
 
   let currentPassword = null;
+  let lastEmployees = [];
   let rawData = null; // { campaign, totalMembers, brackets, employees, generatedAt } — ไม่ผูกกับตัวกรอง
   let allDateMin = null, allDateMax = null; // 'yyyy-mm-dd'
 
@@ -372,7 +381,7 @@
       <label><input type="checkbox" class="bracketCheck" value="${size}" ${filters.brackets.has(size) ? 'checked' : ''}> ${size}</label>
     `).join('');
 
-    allStoreNames = Array.from(new Set(data.employees.map(e => e.adName).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'th'));
+    allStoreNames = Array.from(new Set([...(data.adStores || []).map(s => s.adName), ...data.employees.map(e => e.adName)].filter(Boolean))).sort((a, b) => a.localeCompare(b, 'th'));
     if (filters.stores === null) filters.stores = new Set(allStoreNames);
     document.getElementById('storeCheckList').innerHTML = allStoreNames.map(name => `
       <label><input type="checkbox" class="storeCheck" value="${name}" ${filters.stores.has(name) ? 'checked' : ''}> ${name}</label>
@@ -522,11 +531,14 @@
     return out;
   }
 
-  // ---- นับจำนวนพนักงานที่เข้าร่วม (มี referral สำเร็จอย่างน้อย 1) แยกตาม AD (ร้าน) ----
+  // ---- นับจำนวนพนักงานที่เข้าร่วม (มี referral สำเร็จอย่างน้อย 1) แยกตาม AD (ร้าน) — แสดงทุกร้านจากชีต "ขนาด AD" แม้ยังไม่มีคนเข้าร่วม ----
   // adName/adSize ของพนักงานจะถูกกำหนดจาก referral ครั้งแรกเท่านั้น (ดู buildEmployeeSummaries_ ฝั่ง backend)
   // เลยมีแค่พนักงานที่ "เข้าร่วมแล้ว" (referralCount > 0) เท่านั้นที่รู้ว่าอยู่ AD ไหน
   function buildAdTable(employees) {
     const byAd = new Map();
+    (rawData.adStores || [])
+      .filter(s => (s.adSize == null || filters.brackets.has(s.adSize)) && filters.stores.has(s.adName))
+      .forEach(s => byAd.set(s.adName, { adName: s.adName, adSize: s.adSize, participating: 0, totalReferrals: 0 }));
     employees.filter(e => e.adName && e.referralCount > 0).forEach(e => {
       if (!byAd.has(e.adName)) byAd.set(e.adName, { adName: e.adName, adSize: e.adSize, participating: 0, totalReferrals: 0 });
       const row = byAd.get(e.adName);
@@ -582,6 +594,7 @@
       return { ...b, range: BRACKET_RANGE_LABELS[b.size] || '', cardsUsed, storesActive };
     }));
 
+    lastEmployees = employees;
     renderDonut(employees, participatingEmployees);
     renderLeaderboard(employees.slice().sort((a, b) => b.referralCount - a.referralCount));
   }
@@ -680,6 +693,45 @@
     renderAdTableRows();
   }
 
+  function getSortedAdRows() {
+    const { key, dir } = adTableSort;
+    const col = AD_TABLE_COLS.find(c => c.key === key);
+    return adTableRows.slice().sort((a, b) => {
+      const va = a[key], vb = b[key];
+      const cmp = col.numeric ? va - vb : String(va || '').localeCompare(String(vb || ''), 'th');
+      return dir === 'asc' ? cmp : -cmp;
+    });
+  }
+
+  // CSV + BOM เพื่อให้ Excel อ่านภาษาไทยไม่เพี้ยน; ขึ้นต้นเซลล์ที่เป็นสูตร (= + - @) ด้วย ' กัน CSV injection
+  function downloadCsv(filename, header, rows) {
+    const cell = (v) => {
+      let s = v == null ? '' : String(v);
+      if (/^[=+\-@]/.test(s) && isNaN(Number(s))) s = "'" + s;
+      return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const csv = '﻿' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportStamp() { return new Date().toISOString().slice(0, 10); }
+
+  function exportAdTable() {
+    downloadCsv(`ad-participation_${exportStamp()}.csv`,
+      AD_TABLE_COLS.map(c => c.label),
+      getSortedAdRows().map(r => [r.adName, r.adSize, r.staffCount, r.participating, r.staffCount > 0 ? r.participationPct : '', r.totalReferrals]));
+  }
+
+  function exportEmployees() {
+    downloadCsv(`employees_${exportStamp()}.csv`,
+      ['ชื่อ', 'AD (ร้าน)', 'ขนาด AD', 'วันที่ลงทะเบียน', 'จำนวน referral', 'บัตรที่ได้', 'บาท'],
+      lastEmployees.map(e => [e.name, e.adName, e.adSize, String(e.joinedAt || '').slice(0, 10), e.referralCount, e.cardsEarned, e.bahtEarned]));
+  }
+
   function renderAdTable(rows) {
     adTableRows = rows;
     renderAdTableRows();
@@ -692,12 +744,7 @@
       return;
     }
     const { key, dir } = adTableSort;
-    const col = AD_TABLE_COLS.find(c => c.key === key);
-    const sorted = adTableRows.slice().sort((a, b) => {
-      const va = a[key], vb = b[key];
-      const cmp = col.numeric ? va - vb : String(va || '').localeCompare(String(vb || ''), 'th');
-      return dir === 'asc' ? cmp : -cmp;
-    });
+    const sorted = getSortedAdRows();
     const totalParticipating = adTableRows.reduce((s, r) => s + r.participating, 0);
     const totalReferrals = adTableRows.reduce((s, r) => s + r.totalReferrals, 0);
     const totalStaff = adTableRows.reduce((s, r) => s + r.staffCount, 0);
