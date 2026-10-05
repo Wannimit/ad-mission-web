@@ -264,6 +264,11 @@
 
 <script src="config.js"></script>
 <script>
+  // ตัวอักษรแรกของชื่อ — ข้ามสระนำ (เ แ โ ใ ไ) เพื่อให้ได้พยัญชนะตัวแรกแทนสระลอยๆ
+  function avatarChar(name) {
+    const chars = Array.from(String(name || '').trim());
+    return chars.find(c => !'เแโใไ'.includes(c)) || chars[0] || '?';
+  }
   function fmtPhone(p) {
     const d = String(p || '').replace(/\D/g, '');
     return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : d;
@@ -856,7 +861,7 @@
   function renderLeaderboard(leaderboard) {
     document.getElementById('leaderboard').innerHTML = leaderboard.map((e, i) => `
       <div class="lb-row">
-        <div class="lb-avatar ${i === 0 && e.referralCount > 0 ? 'top' : ''}">${e.name.slice(-1)}</div>
+        <div class="lb-avatar ${i === 0 && e.referralCount > 0 ? 'top' : ''}">${avatarChar(e.name)}</div>
         <div style="flex:1; min-width:0;">
           <div class="lb-name">${e.name}${e.phone ? ` <span class="lb-phone">${fmtPhone(e.phone)}</span>` : ''}</div>
           <div class="lb-sub">${e.adName ? `${e.adName} · ${e.adSize}` : 'ยังไม่มีลูกค้าแนะนำสำเร็จ'}</div>
