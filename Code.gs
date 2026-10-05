@@ -132,6 +132,7 @@ function readAdStores_() {
   if (!sheet) return [];
   // getDisplayValues กันรหัสร้าน (เช่น 0810) ที่เก็บเป็นตัวเลขแล้วเลข 0 นำหน้าหาย
   const values = sheet.getDataRange().getDisplayValues();
+  if (values.length < 2) return [];
   // แผ่นงานนี้มีแถวชื่อเรื่องอยู่บนหัวตาราง (ซึ่งมีคำว่า "ชื่อร้าน" ปนอยู่ในประโยคด้วย) — หาแถวหัวตารางจากเซลล์ที่เป็น "Bracket" เป๊ะๆ
   let headerRow = -1;
   for (let i = 0; i < Math.min(values.length, 10); i++) {
