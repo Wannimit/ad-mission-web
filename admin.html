@@ -23,9 +23,12 @@
   .kpi-value .big { font-size: 24px; font-weight: 800; }
   .kpi-value .small { font-size: 13px; color: var(--muted); }
   .kpi-caption { font-size: 12px; color: var(--muted); margin-top: 6px; }
-  .trend-wrap { position: relative; height: 160px; padding-top: 4px; }
+  .trend-wrap { position: relative; height: 180px; padding-top: 22px; box-sizing: border-box; }
   .trend-bars { display: flex; align-items: flex-end; gap: 4px; height: 100%; width: 100%; }
-  .trend-bar { flex: 1; border-radius: 5px 5px 0 0; min-height: 2px; }
+  .trend-bar { flex: 1; border-radius: 5px 5px 0 0; min-height: 2px; position: relative; }
+  .trend-val { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; font-size: 11.5px; font-weight: 700; color: var(--ink); line-height: 1; white-space: nowrap; }
+  .trend-bars:has(.trend-bar:nth-child(21)) .trend-val { font-size: 9.5px; }
+  .trend-bars:has(.trend-bar:nth-child(36)) .trend-val { display: none; }
   .trend-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); margin-top: 14px; }
   .trend-legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
   .bracket-row { margin-bottom: 16px; }
@@ -556,9 +559,13 @@
       row.participating += 1;
       row.totalReferrals += e.referralCount;
     });
-    const staffByAd = new Map((rawData.adStores || []).map(s => [s.adName, s.staffCount]));
+    const storeByAd = new Map((rawData.adStores || []).map(s => [s.adName, s]));
     byAd.forEach(row => {
-      row.staffCount = staffByAd.get(row.adName) || 0;
+      const st = storeByAd.get(row.adName) || {};
+      row.staffCount = st.staffCount || 0;
+      row.storeCode = st.storeCode || '';
+      row.region = st.region || '';
+      row.center = st.center || '';
       row.participationPct = pct(row.participating, row.staffCount);
     });
     return Array.from(byAd.values()).sort((a, b) => b.participating - a.participating || a.adName.localeCompare(b.adName, 'th'));
@@ -666,7 +673,7 @@
     document.getElementById('trendSub').textContent =
       trend.length ? `${trend[0].date} – ${trend[trend.length - 1].date} · เฉลี่ย ${trendAvg} ครั้ง/วัน` : 'ยังไม่มีข้อมูล';
     document.getElementById('trendChart').innerHTML = `<div class="trend-bars">` + trend.map(d => `
-      <div class="trend-bar" title="${d.date}: ${d.count} ครั้ง" style="height:${Math.max(4, (d.count / trendMax) * 100)}%; background:${d.isWeekend ? 'var(--teal)' : 'var(--orange)'};"></div>
+      <div class="trend-bar" title="${d.date}: ${d.count} ครั้ง" style="height:${Math.max(4, (d.count / trendMax) * 100)}%; background:${d.isWeekend ? 'var(--teal)' : 'var(--orange)'};"><span class="trend-val">${d.count}</span></div>
     `).join('') + `</div>`;
   }
 
@@ -677,7 +684,7 @@
     document.getElementById('signupTrendSub').textContent =
       trend.length ? `${trend[0].date} – ${trend[trend.length - 1].date} · เฉลี่ย ${trendAvg} คน/วัน` : 'ยังไม่มีข้อมูลวันที่ลงทะเบียน';
     document.getElementById('signupTrendChart').innerHTML = `<div class="trend-bars">` + trend.map(d => `
-      <div class="trend-bar" title="${d.date}: ${d.count} คน" style="height:${Math.max(4, (d.count / trendMax) * 100)}%; background:${d.isWeekend ? 'var(--teal)' : 'var(--lime)'};"></div>
+      <div class="trend-bar" title="${d.date}: ${d.count} คน" style="height:${Math.max(4, (d.count / trendMax) * 100)}%; background:${d.isWeekend ? 'var(--teal)' : 'var(--lime)'};"><span class="trend-val">${d.count}</span></div>
     `).join('') + `</div>`;
   }
 
@@ -685,7 +692,10 @@
   let adTableRows = [];
   const adTableSort = { key: 'participating', dir: 'desc' };
   const AD_TABLE_COLS = [
+    { key: 'storeCode', label: 'รหัสร้าน', numeric: false },
     { key: 'adName', label: 'AD (ร้าน)', numeric: false },
+    { key: 'region', label: 'เขต', numeric: false },
+    { key: 'center', label: 'ศูนย์', numeric: false },
     { key: 'adSize', label: 'ขนาด AD', numeric: false },
     { key: 'staffCount', label: 'พนักงานในร้าน', numeric: true },
     { key: 'participating', label: 'พนักงานเข้าร่วม', numeric: true },
@@ -734,7 +744,7 @@
   function exportAdTable() {
     downloadCsv(`ad-participation_${exportStamp()}.csv`,
       AD_TABLE_COLS.map(c => c.label),
-      getSortedAdRows().map(r => [r.adName, r.adSize, r.staffCount, r.participating, r.staffCount > 0 ? r.participationPct : '', r.totalReferrals]));
+      getSortedAdRows().map(r => [r.storeCode, r.adName, r.region, r.center, r.adSize, r.staffCount, r.participating, r.staffCount > 0 ? r.participationPct : '', r.totalReferrals]));
   }
 
   function exportEmployees() {
@@ -775,7 +785,10 @@
         <tbody>
           ${sorted.map(r => `
             <tr>
+              <td style="color:var(--muted);">${r.storeCode || '—'}</td>
               <td style="font-weight:600;">${r.adName}</td>
+              <td>${r.region || '—'}</td>
+              <td>${r.center || '—'}</td>
               <td style="color:var(--muted);">${r.adSize || '—'}</td>
               <td class="num-cell num">${staffCell(r)}</td>
               <td class="num-cell num">${r.participating} คน</td>
@@ -786,7 +799,7 @@
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="2">รวม ${adTableRows.length} AD</td>
+            <td colspan="5">รวม ${adTableRows.length} AD</td>
             <td class="num-cell num">${totalStaff} คน</td>
             <td class="num-cell num">${totalParticipating} คน</td>
             <td class="num-cell num">${totalStaff > 0 ? pct(totalParticipating, totalStaff) + '%' : '—'}</td>

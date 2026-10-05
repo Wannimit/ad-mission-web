@@ -130,7 +130,8 @@ function loadAll_() {
 function readAdStores_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_AD_SIZE);
   if (!sheet) return [];
-  const values = sheet.getDataRange().getValues();
+  // getDisplayValues กันรหัสร้าน (เช่น 0810) ที่เก็บเป็นตัวเลขแล้วเลข 0 นำหน้าหาย
+  const values = sheet.getDataRange().getDisplayValues();
   // แผ่นงานนี้มีแถวชื่อเรื่องอยู่บนหัวตาราง (ซึ่งมีคำว่า "ชื่อร้าน" ปนอยู่ในประโยคด้วย) — หาแถวหัวตารางจากเซลล์ที่เป็น "Bracket" เป๊ะๆ
   let headerRow = -1;
   for (let i = 0; i < Math.min(values.length, 10); i++) {
@@ -145,6 +146,10 @@ function readAdStores_() {
   const nameIdx = findCol(function (h) { return h.indexOf('ชื่อร้าน') === 0; }, 3);
   const sizeIdx = findCol(function (h) { return h === 'Bracket' || h === 'AD_Size' || h === 'AD_size'; }, 0);
   const staffIdx = findCol(function (h) { return h.indexOf('จำนวนช่าง') >= 0; }, 4);
+  const codeIdx = findCol(function (h) { return h.indexOf('รหัสร้าน') === 0; }, -1);
+  const regionIdx = findCol(function (h) { return h.indexOf('เขต') === 0; }, -1);
+  const centerIdx = findCol(function (h) { return h.indexOf('ศูนย์') === 0; }, -1);
+  function cellText(row, idx) { return idx >= 0 ? String(row[idx] == null ? '' : row[idx]).trim() : ''; }
   return values.slice(headerRow + 1)
     .filter(function (row) { return String(row[nameIdx] || '').trim() !== ''; })
     .map(function (row) {
@@ -152,6 +157,9 @@ function readAdStores_() {
         adName: String(row[nameIdx]).trim(),
         adSize: row[sizeIdx],
         staffCount: Number(row[staffIdx]) || 0,
+        storeCode: cellText(row, codeIdx),
+        region: cellText(row, regionIdx),
+        center: cellText(row, centerIdx),
       };
     });
 }
