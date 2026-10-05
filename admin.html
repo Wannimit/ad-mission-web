@@ -26,6 +26,7 @@
   .trend-wrap { position: relative; height: 180px; padding-top: 22px; box-sizing: border-box; }
   .trend-bars { display: flex; align-items: flex-end; gap: 4px; height: 100%; width: 100%; }
   .trend-bar { flex: 1; border-radius: 5px 5px 0 0; min-height: 2px; position: relative; }
+  .lb-phone { font-size: 12.5px; font-weight: 500; color: var(--muted); margin-left: 8px; white-space: nowrap; }
   .trend-total { color: var(--ink); font-size: 1.15em; font-weight: 700; }
   .trend-val { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; font-size: 11.5px; font-weight: 700; color: var(--ink); line-height: 1; white-space: nowrap; }
   .trend-bars:has(.trend-bar:nth-child(21)) .trend-val { font-size: 9.5px; }
@@ -263,6 +264,10 @@
 
 <script src="config.js"></script>
 <script>
+  function fmtPhone(p) {
+    const d = String(p || '').replace(/\D/g, '');
+    return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : d;
+  }
   function pct(a, b) { return b > 0 ? Math.round((a / b) * 1000) / 10 : 0; }
 
   const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -503,7 +508,7 @@
         const referralCount = days.length;
         const cardsEarned = Math.min(Math.floor(referralCount / campaign.pointsPerCard), campaign.maxCardsPerPerson);
         return {
-          name: e.name, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt,
+          name: e.name, phone: e.phone, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt,
           referralCount, cardsEarned,
           bahtEarned: cardsEarned * campaign.cardValueBaht,
           atCap: referralCount >= campaign.maxReferralsPerPerson,
@@ -853,7 +858,7 @@
       <div class="lb-row">
         <div class="lb-avatar ${i === 0 && e.referralCount > 0 ? 'top' : ''}">${e.name.slice(-1)}</div>
         <div style="flex:1; min-width:0;">
-          <div class="lb-name">${e.name}</div>
+          <div class="lb-name">${e.name}${e.phone ? ` <span class="lb-phone">${fmtPhone(e.phone)}</span>` : ''}</div>
           <div class="lb-sub">${e.adName ? `${e.adName} · ${e.adSize}` : 'ยังไม่มีลูกค้าแนะนำสำเร็จ'}</div>
         </div>
         <div class="lb-count num">${e.referralCount} <span class="unit">reg</span></div>

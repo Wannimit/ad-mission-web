@@ -10,7 +10,7 @@
  *
  * Endpoints (GET ทั้งหมด):
  *   ?mode=personal&phone=1234567890123     -> ข้อมูลเฉพาะของพนักงานคนนั้น (ใช้ใน check.html)
- *   ?mode=admin&password=...             -> ภาพรวมทั้งแคมเปญ ไม่มี phone/ข้อมูลระบุตัวตนอื่น (ใช้ใน admin.html)
+ *   ?mode=admin&password=...             -> ภาพรวมทั้งแคมเปญ + เบอร์โทรพนักงาน (เฉพาะหลังผ่านรหัสผ่าน admin) (ใช้ใน admin.html)
  *   ?mode=stamp&password=...             -> Admin กดปุ่ม "แสตมป์อัตโนมัติ" เพื่อล็อกจำนวนบัตรที่ได้สิทธิ์จริง
  *                                            เรียงตามเวลาที่ครบ 4 register จริง (submitted_at) ข้ามทุกคน/ทุกร้าน
  *                                            (กันโควตา bracket แจกเกิน) — idempotent เรียกซ้ำได้ไม่แสตมป์ซ้ำ
@@ -417,6 +417,7 @@ function buildAdminSummary() {
   const employees = summaries.map(function (s) {
     return {
       name: s.name,
+      phone: s.phone, // เบอร์โทรพนักงาน — แสดงเฉพาะหน้า admin (ต้องผ่านรหัสผ่านแล้วเท่านั้น)
       adName: s.adName,
       adSize: s.adSize,
       joinedAt: s.joinedAt, // วันที่ลงทะเบียนเข้าร่วม (จากชีต "พนักงานที่เข้าร่วม") — ใช้ทำกราฟแท่งรายวัน
