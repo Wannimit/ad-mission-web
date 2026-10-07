@@ -94,6 +94,7 @@ function loadAll_() {
   const registrations = readSheetAsObjects_(SHEET_REGISTRATIONS)
     .map(function (r) {
       return {
+        kubotaId: String(r['kubota_id'] || '').trim(),
         customerName: r['name'],
         submittedAt: formatDate_(r['submitted_at']),
         referrerPhone: String(r['comment_care'] || '').replace(/\D/g, ''), // เบอร์โทรของช่างผู้แนะนำ
@@ -101,7 +102,18 @@ function loadAll_() {
         adName: r['AD'],
       };
     })
-    .filter(function (r) { return r.referrerPhone.length >= 9 && r.referrerPhone.length <= 10; }); // ต้องเป็นเบอร์โทร 9-10 หลักเท่านั้น
+    .filter(function (r) { return r.referrerPhone.length >= 9 && r.referrerPhone.length <= 10; }) // ต้องเป็นเบอร์โทร 9-10 หลักเท่านั้น
+    // ลูกค้าคนเดียวกัน (kubota_id ซ้ำ) ลงทะเบียนหลายแถว นับเป็น 1 ครั้งของผู้แนะนำ — เก็บแถวที่ส่งก่อนสุด
+    .sort(function (a, b) { return a.submittedAt < b.submittedAt ? -1 : a.submittedAt > b.submittedAt ? 1 : 0; })
+    .filter((function () {
+      const seen = {};
+      return function (r) {
+        if (!r.kubotaId) return true;
+        if (seen[r.kubotaId]) return false;
+        seen[r.kubotaId] = true;
+        return true;
+      };
+    })());
 
   const brackets = readSheetAsObjects_(SHEET_CRITERIA).map(function (b) {
     return {
