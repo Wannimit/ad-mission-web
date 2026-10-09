@@ -44,6 +44,7 @@ function doGet(e) {
     if (mode === 'admin') {
       const role = getAdminRole_(String(e.parameter.password || ''));
       if (!role) return jsonOut_({ error: 'UNAUTHORIZED' });
+      if (role.denied) return jsonOut_({ error: 'NO_ACCESS' });
       return jsonOut_(buildAdminSummary(role));
     }
     if (mode === 'personal') {
@@ -54,6 +55,7 @@ function doGet(e) {
     if (mode === 'stamp') {
       const role = getAdminRole_(String(e.parameter.password || ''));
       if (!role) return jsonOut_({ error: 'UNAUTHORIZED' });
+      if (role.denied) return jsonOut_({ error: 'NO_ACCESS' });
       if (role.regions) return jsonOut_({ error: 'FORBIDDEN' }); // user ระดับเขตสั่งแสตมป์ไม่ได้
       return jsonOut_(autoStampNewCards_(loadAll_()));
     }
@@ -181,7 +183,8 @@ function readAdStores_() {
 
 // ---------- ตรวจรหัสผ่านหน้า admin กับแผ่นงาน "Admin" และหาสิทธิ์ (ทุกเขต / เฉพาะเขต) ----------
 // แผ่นงาน Admin: label | password | region
-//   region ว่าง / ALL / ทั้งหมด / SuperAdmin (หรือไม่มีคอลัมน์นี้) = เห็นทุกเขต + สั่งแสตมป์ได้ (เหมือนเดิม)
+//   region = SuperAdmin / ALL / ทั้งหมด (ต้องเขียนชัดๆ) = เห็นทุกเขต + สั่งแสตมป์ได้
+//   region ว่าง (หรือไม่มีคอลัมน์ region) = ไม่เห็นข้อมูลเลย (NO_ACCESS)
 //   region = ค่าในคอลัมน์ "เขต" ของแผ่นงาน "ขนาด AD" เป๊ะๆ เช่น กลางตะวันตก (ใส่หลายเขตคั่นด้วย , ได้) = เห็นเฉพาะ AD ในเขตนั้น ไม่เห็นแสตมป์
 // คืน null ถ้ารหัสผ่านผิด
 function getAdminRole_(password) {
@@ -189,10 +192,14 @@ function getAdminRole_(password) {
   const rows = readSheetAsObjects_(SHEET_ADMIN);
   const row = rows.filter(function (r) { return String(r['password'] || '') === password; })[0];
   if (!row) return null;
-  const regions = String(row['region'] || '').split(/[,;]/)
+  const label = String(row['label'] || '');
+  const parts = String(row['region'] || '').split(/[,;]/)
     .map(function (x) { return x.trim(); })
-    .filter(function (x) { return x && x !== 'ทั้งหมด' && x.toUpperCase() !== 'ALL' && x.toUpperCase() !== 'SUPERADMIN'; });
-  return { label: String(row['label'] || ''), regions: regions.length ? regions : null };
+    .filter(function (x) { return x; });
+  const isAllKeyword = function (x) { return x === 'ทั้งหมด' || x.toUpperCase() === 'ALL' || x.toUpperCase() === 'SUPERADMIN'; };
+  if (parts.some(isAllKeyword)) return { label: label, regions: null }; // เห็นทุกเขต — ต้องเขียนคำนี้ชัดๆ เท่านั้น
+  if (!parts.length) return { label: label, regions: [], denied: true }; // region ว่าง/ไม่มีคอลัมน์ = ไม่เห็นข้อมูลเลย (กันเปิดหมดโดยไม่ตั้งใจ)
+  return { label: label, regions: parts };
 }
 
 // จำนวนบัตรที่ "ควรมีสิทธิ์" ตามยอด register (ใช้ตอนแสตมป์เท่านั้น — ไม่ใช้ตัดสิน cardsEarned ที่ส่งออกโดยตรงแล้ว)
