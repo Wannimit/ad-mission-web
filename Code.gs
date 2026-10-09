@@ -42,9 +42,9 @@ function doGet(e) {
   try {
     const mode = (e.parameter.mode || '').trim();
     if (mode === 'admin') {
-      const password = String(e.parameter.password || '');
-      if (!isValidAdminPassword_(password)) return jsonOut_({ error: 'UNAUTHORIZED' });
-      return jsonOut_(buildAdminSummary());
+      const role = getAdminRole_(String(e.parameter.password || ''));
+      if (!role) return jsonOut_({ error: 'UNAUTHORIZED' });
+      return jsonOut_(buildAdminSummary(role));
     }
     if (mode === 'personal') {
       const phone = String(e.parameter.phone || '').replace(/\D/g, '');
@@ -52,8 +52,9 @@ function doGet(e) {
       return jsonOut_(buildPersonalSummary(phone));
     }
     if (mode === 'stamp') {
-      const password = String(e.parameter.password || '');
-      if (!isValidAdminPassword_(password)) return jsonOut_({ error: 'UNAUTHORIZED' });
+      const role = getAdminRole_(String(e.parameter.password || ''));
+      if (!role) return jsonOut_({ error: 'UNAUTHORIZED' });
+      if (role.regions) return jsonOut_({ error: 'FORBIDDEN' }); // user ระดับเขตสั่งแสตมป์ไม่ได้
       return jsonOut_(autoStampNewCards_(loadAll_()));
     }
     return jsonOut_({ error: 'INVALID_MODE' });
@@ -131,6 +132,7 @@ function loadAll_() {
       phone: String(m['phone'] || '').replace(/\D/g, ''),
       // คอลัมน์วันที่ลงทะเบียนเข้าร่วม — ชื่อคอลัมน์จริงในชีตคือ "ประทับเวลา" (ยืนยันแล้วกับ user)
       joinedAt: formatDate_(m['ประทับเวลา'] || m['Timestamp'] || m['วันที่'] || ''),
+      memberStore: String(m['ร้านผู้แทนจำหน่าย'] || '').trim(), // ร้านที่พนักงานลงทะเบียนไว้ — ใช้จัดเข้าเขตของ user ระดับเขต
     };
   });
 
@@ -177,11 +179,20 @@ function readAdStores_() {
     });
 }
 
-// ---------- ตรวจรหัสผ่านหน้า admin กับแผ่นงาน "Admin" ----------
-function isValidAdminPassword_(password) {
-  if (!password) return false;
+// ---------- ตรวจรหัสผ่านหน้า admin กับแผ่นงาน "Admin" และหาสิทธิ์ (ทุกเขต / เฉพาะเขต) ----------
+// แผ่นงาน Admin: label | password | region
+//   region ว่าง / ALL / ทั้งหมด / SuperAdmin (หรือไม่มีคอลัมน์นี้) = เห็นทุกเขต + สั่งแสตมป์ได้ (เหมือนเดิม)
+//   region = ค่าในคอลัมน์ "เขต" ของแผ่นงาน "ขนาด AD" เป๊ะๆ เช่น กลางตะวันตก (ใส่หลายเขตคั่นด้วย , ได้) = เห็นเฉพาะ AD ในเขตนั้น ไม่เห็นแสตมป์
+// คืน null ถ้ารหัสผ่านผิด
+function getAdminRole_(password) {
+  if (!password) return null;
   const rows = readSheetAsObjects_(SHEET_ADMIN);
-  return rows.some(function (r) { return String(r['password'] || '') === password; });
+  const row = rows.filter(function (r) { return String(r['password'] || '') === password; })[0];
+  if (!row) return null;
+  const regions = String(row['region'] || '').split(/[,;]/)
+    .map(function (x) { return x.trim(); })
+    .filter(function (x) { return x && x !== 'ทั้งหมด' && x.toUpperCase() !== 'ALL' && x.toUpperCase() !== 'SUPERADMIN'; });
+  return { label: String(row['label'] || ''), regions: regions.length ? regions : null };
 }
 
 // จำนวนบัตรที่ "ควรมีสิทธิ์" ตามยอด register (ใช้ตอนแสตมป์เท่านั้น — ไม่ใช้ตัดสิน cardsEarned ที่ส่งออกโดยตรงแล้ว)
@@ -202,7 +213,7 @@ function readStamps_() {
 function buildEmployeeSummaries_(data, stamps) {
   const byPhone = new Map();
   data.members.forEach(function (m) {
-    byPhone.set(m.phone, { name: m.name, phone: m.phone, joinedAt: m.joinedAt, referrals: [], adName: null, adSize: null });
+    byPhone.set(m.phone, { name: m.name, phone: m.phone, joinedAt: m.joinedAt, memberStore: m.memberStore, referrals: [], adName: null, adSize: null });
   });
   data.registrations.forEach(function (r) {
     const s = byPhone.get(r.referrerPhone);
@@ -219,6 +230,7 @@ function buildEmployeeSummaries_(data, stamps) {
       name: s.name,
       phone: s.phone,
       joinedAt: s.joinedAt,
+      memberStore: s.memberStore,
       adName: s.adName,
       adSize: s.adSize,
       referrals: s.referrals,
@@ -422,10 +434,38 @@ function syncRegistrationsFromExcelOnline() {
 }
 
 // ---------- mode=admin: ภาพรวมล้วนๆ ไม่มีเบอร์โทร ----------
-function buildAdminSummary() {
+// role.regions = null → เห็นทุกเขต; เป็น array ชื่อเขต → กรองฝั่ง server ให้เหลือเฉพาะ AD/พนักงานในเขตนั้น (ข้อมูลเขตอื่นไม่ถูกส่งออกไปเลย)
+function buildAdminSummary(role) {
+  const regions = role && role.regions;
   const data = loadAll_();
-  autoStampNewCards_(data); // ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันทีทุกครั้งที่แอดมินเปิดหน้านี้
-  const summaries = buildEmployeeSummaries_(data, []);
+  autoStampNewCards_(data); // ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันทีทุกครั้งที่แอดมินเปิดหน้านี้ (กระทบทุกเขตเสมอ ไม่ขึ้นกับ user ที่เปิด)
+  let summaries = buildEmployeeSummaries_(data, []);
+  const allStores = readAdStores_();
+  let adStores = allStores;
+  let brackets = data.brackets;
+  let totalMembers = data.members.length;
+
+  if (regions) {
+    adStores = allStores.filter(function (s) { return regions.indexOf(s.region) >= 0; });
+    const inRegion = {};
+    adStores.forEach(function (s) { inRegion[s.adName] = true; });
+    // จัดพนักงานเข้าเขตตามร้านที่ลงทะเบียนไว้ (ถ้าไม่มีใช้ AD จาก referral)
+    summaries = summaries.filter(function (s) { return inRegion[s.memberStore || s.adName]; });
+    totalMembers = data.members.filter(function (m) { return inRegion[m.memberStore]; }).length;
+    // โควตา/งบ/เป้าหมายของ Bracket แบ่งตามสัดส่วนจำนวนร้านของเขต ต่อร้านทั้งหมดใน Bracket นั้น (เกณฑ์เดิมแบ่งเท่าๆ กันทุกร้านใน Bracket)
+    brackets = data.brackets.map(function (b) {
+      const total = allStores.filter(function (s) { return s.adSize === b.size; }).length || b.stores;
+      const n = adStores.filter(function (s) { return s.adSize === b.size; }).length;
+      const ratio = total > 0 ? Math.min(1, n / total) : 0;
+      return {
+        size: b.size,
+        stores: n,
+        cardQuota: Math.round(b.cardQuota * ratio),
+        userTarget: Math.round(b.userTarget * ratio),
+        budget: Math.round(b.budget * ratio),
+      };
+    }).filter(function (b) { return b.stores > 0; });
+  }
 
   const employees = summaries.map(function (s) {
     return {
@@ -440,9 +480,10 @@ function buildAdminSummary() {
 
   return {
     campaign: CAMPAIGN,
-    totalMembers: data.members.length,
-    brackets: data.brackets, // { size, stores, cardQuota, userTarget, budget } — ค่าคงที่ตามเกณฑ์ ไม่ผูกกับตัวกรอง
-    adStores: readAdStores_(), // { adName, adSize, staffCount } จากแผ่นงาน "ขนาด AD" (staffCount = คอลัมน์ E)
+    scope: regions ? { type: 'region', regions: regions, label: role.label } : { type: 'all' }, // หน้าเว็บใช้ซ่อนการ์ดแสตมป์ + แสดงชื่อเขต
+    totalMembers: totalMembers,
+    brackets: brackets, // { size, stores, cardQuota, userTarget, budget } — ค่าคงที่ตามเกณฑ์ ไม่ผูกกับตัวกรอง (user ระดับเขต = แบ่งสัดส่วนตามจำนวนร้านของเขต)
+    adStores: adStores, // { adName, adSize, staffCount, storeCode, region, center } จากแผ่นงาน "ขนาด AD"
     employees: employees,
     generatedAt: new Date().toISOString(),
   };

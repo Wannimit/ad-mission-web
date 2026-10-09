@@ -130,7 +130,7 @@
           <span class="label">AD Mission × Kubota Care</span>
         </div>
         <div class="hero-title">ภาพรวมแคมเปญแนะนำลูกค้าโหลดแอป</div>
-        <div class="hero-desc">ติดตามความคืบหน้างบประมาณ ยอดลงทะเบียน และการกระจายบัตรรางวัลของช่างทั่วทั้ง <span id="heroStoreCount"></span> ร้าน</div>
+        <div class="hero-desc">ติดตามความคืบหน้างบประมาณ ยอดลงทะเบียน และการกระจายบัตรรางวัลของช่าง<span id="heroScope">ทั่วทั้ง</span> <span id="heroStoreCount"></span> ร้าน</div>
       </div>
       <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
         <div class="hero-sync" id="heroSync"></div>
@@ -590,6 +590,10 @@
   function renderAll(employees) {
     const totalStores = rawData.brackets.reduce((s, b) => s + b.stores, 0);
     document.getElementById('heroStoreCount').textContent = totalStores;
+    // user ระดับเขต: ซ่อนการ์ดแสตมป์ และบอกชัดว่ากำลังดูเฉพาะเขตไหน (server กรองข้อมูลมาให้แล้ว และปฏิเสธคำสั่งแสตมป์อยู่ดี)
+    const isRegion = !!(rawData.scope && rawData.scope.type === 'region');
+    document.querySelector('.stamp-bar').style.display = isRegion ? 'none' : '';
+    document.getElementById('heroScope').textContent = isRegion ? ` ในเขต ${rawData.scope.regions.join(', ')} ทั้ง` : 'ทั่วทั้ง';
     const generated = new Date(rawData.generatedAt);
     const generatedLabel = generated.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
     document.getElementById('noticeBanner').outerHTML =
