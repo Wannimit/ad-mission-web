@@ -440,6 +440,16 @@ function syncRegistrationsFromExcelOnline() {
   return { added: newRows.length };
 }
 
+// เบอร์โทรซ้ำนับเป็นคนเดียว (ถ้าลงทะเบียนหลายแถว ใช้ร้านจากแถวล่าสุด ตรงกับที่ buildEmployeeSummaries_ จับคู่ด้วยเบอร์) — แถวที่ไม่มีเบอร์แยกไม่ได้ จึงนับเป็นรายแถว
+function uniqueMembersByPhone_(members) {
+  const byPhone = {};
+  const noPhone = [];
+  members.forEach(function (m) {
+    if (m.phone) byPhone[m.phone] = m; else noPhone.push(m);
+  });
+  return Object.keys(byPhone).map(function (k) { return byPhone[k]; }).concat(noPhone);
+}
+
 // ---------- mode=admin: ภาพรวมล้วนๆ ไม่มีเบอร์โทร ----------
 // role.regions = null → เห็นทุกเขต; เป็น array ชื่อเขต → กรองฝั่ง server ให้เหลือเฉพาะ AD/พนักงานในเขตนั้น (ข้อมูลเขตอื่นไม่ถูกส่งออกไปเลย)
 function buildAdminSummary(role) {
@@ -450,7 +460,8 @@ function buildAdminSummary(role) {
   const allStores = readAdStores_();
   let adStores = allStores;
   let brackets = data.brackets;
-  let totalMembers = data.members.length;
+  const uniqueMembers = uniqueMembersByPhone_(data.members);
+  let totalMembers = uniqueMembers.length;
 
   if (regions) {
     adStores = allStores.filter(function (s) { return regions.indexOf(s.region) >= 0; });
@@ -458,7 +469,7 @@ function buildAdminSummary(role) {
     adStores.forEach(function (s) { inRegion[s.adName] = true; });
     // จัดพนักงานเข้าเขตตามร้านที่ลงทะเบียนไว้ (ถ้าไม่มีใช้ AD จาก referral)
     summaries = summaries.filter(function (s) { return inRegion[s.memberStore || s.adName]; });
-    totalMembers = data.members.filter(function (m) { return inRegion[m.memberStore]; }).length;
+    totalMembers = uniqueMembers.filter(function (m) { return inRegion[m.memberStore]; }).length;
     // โควตา/งบ/เป้าหมายของ Bracket แบ่งตามสัดส่วนจำนวนร้านของเขต ต่อร้านทั้งหมดใน Bracket นั้น (เกณฑ์เดิมแบ่งเท่าๆ กันทุกร้านใน Bracket)
     brackets = data.brackets.map(function (b) {
       const total = allStores.filter(function (s) { return s.adSize === b.size; }).length || b.stores;
@@ -473,6 +484,15 @@ function buildAdminSummary(role) {
       };
     }).filter(function (b) { return b.stores > 0; });
   }
+
+  // จำนวนพนักงานที่ลงทะเบียนไว้ต่อร้าน (คอลัมน์ "ร้านผู้แทนจำหน่าย" ในชีตพนักงาน) — ส่งเฉพาะตัวเลขรวม ไม่มีชื่อ/เบอร์
+  const registeredByStore = {};
+  uniqueMembers.forEach(function (m) {
+    if (m.memberStore) registeredByStore[m.memberStore] = (registeredByStore[m.memberStore] || 0) + 1;
+  });
+  adStores = adStores.map(function (s) {
+    return Object.assign({}, s, { registeredCount: registeredByStore[s.adName] || 0 });
+  });
 
   const employees = summaries.map(function (s) {
     return {

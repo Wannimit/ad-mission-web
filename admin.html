@@ -250,7 +250,7 @@
     </div>
   </div>
   <div class="card" style="padding:18px 20px;">
-    <div class="section-sub" style="margin-top:0;">นับเฉพาะพนักงานที่แนะนำลูกค้าสำเร็จอย่างน้อย 1 ครั้งแล้ว (จึงจะรู้ว่าสังกัด AD ไหน)</div>
+    <div class="section-sub" style="margin-top:0;">"พนักงานเข้าร่วม" = จำนวนที่ลงทะเบียนไว้กับร้านนั้น (ตามชีตพนักงาน) · "แนะนำสำเร็จแล้ว" = ในนั้นมีกี่คนที่พาลูกค้าโหลดแอปสำเร็จอย่างน้อย 1 ครั้ง</div>
     <div id="adTable"></div>
   </div>
 
@@ -584,9 +584,11 @@
       row.storeCode = st.storeCode || '';
       row.region = st.region || '';
       row.center = st.center || '';
-      row.participationPct = pct(row.participating, row.staffCount);
+      // พนักงานที่ลงทะเบียนเข้าร่วม = นับจากคอลัมน์ "ร้านผู้แทนจำหน่าย" ในชีตพนักงาน (backend เวอร์ชันเก่าที่ยังไม่ส่ง registeredCount ใช้ค่าแนะนำสำเร็จแทนไปก่อน)
+      row.registered = st.registeredCount != null ? st.registeredCount : row.participating;
+      row.participationPct = pct(row.registered, row.staffCount);
     });
-    return Array.from(byAd.values()).sort((a, b) => b.participating - a.participating || a.adName.localeCompare(b.adName, 'th'));
+    return Array.from(byAd.values()).sort((a, b) => b.registered - a.registered || b.participating - a.participating || a.adName.localeCompare(b.adName, 'th'));
   }
 
   function applyFiltersAndRender() {
@@ -714,7 +716,7 @@
 
   // ---- ตาราง AD เทียบกับพนักงานที่เข้าร่วม (sort ได้ที่หัวตาราง + มี total ด้านล่าง) ----
   let adTableRows = [];
-  const adTableSort = { key: 'participating', dir: 'desc' };
+  const adTableSort = { key: 'registered', dir: 'desc' };
   const AD_TABLE_COLS = [
     { key: 'storeCode', label: 'รหัสร้าน', numeric: false },
     { key: 'adName', label: 'AD (ร้าน)', numeric: false },
@@ -722,8 +724,9 @@
     { key: 'center', label: 'ศูนย์', numeric: false },
     { key: 'adSize', label: 'ขนาด AD', numeric: false },
     { key: 'staffCount', label: 'พนักงานในร้าน', numeric: true },
-    { key: 'participating', label: 'พนักงานเข้าร่วม', numeric: true },
+    { key: 'registered', label: 'พนักงานเข้าร่วม', numeric: true },
     { key: 'participationPct', label: '% เข้าร่วม', numeric: true },
+    { key: 'participating', label: 'แนะนำสำเร็จแล้ว', numeric: true },
     { key: 'totalReferrals', label: 'Register รวม', numeric: true },
   ];
 
@@ -768,7 +771,7 @@
   function exportAdTable() {
     downloadCsv(`ad-participation_${exportStamp()}.csv`,
       AD_TABLE_COLS.map(c => c.label),
-      getSortedAdRows().map(r => [r.storeCode, r.adName, r.region, r.center, r.adSize, r.staffCount, r.participating, r.staffCount > 0 ? r.participationPct : '', r.totalReferrals]));
+      getSortedAdRows().map(r => [r.storeCode, r.adName, r.region, r.center, r.adSize, r.staffCount, r.registered, r.staffCount > 0 ? r.participationPct : '', r.participating, r.totalReferrals]));
   }
 
   function exportEmployees() {
@@ -790,6 +793,7 @@
     }
     const { key, dir } = adTableSort;
     const sorted = getSortedAdRows();
+    const totalRegistered = adTableRows.reduce((s, r) => s + r.registered, 0);
     const totalParticipating = adTableRows.reduce((s, r) => s + r.participating, 0);
     const totalReferrals = adTableRows.reduce((s, r) => s + r.totalReferrals, 0);
     const totalStaff = adTableRows.reduce((s, r) => s + r.staffCount, 0);
@@ -815,8 +819,9 @@
               <td>${r.center || '—'}</td>
               <td style="color:var(--muted);">${r.adSize || '—'}</td>
               <td class="num-cell num">${staffCell(r)}</td>
-              <td class="num-cell num">${r.participating} คน</td>
+              <td class="num-cell num">${r.registered} คน</td>
               <td class="num-cell num">${pctCell(r)}</td>
+              <td class="num-cell num">${r.participating} คน</td>
               <td class="num-cell num" style="color:var(--muted);">${r.totalReferrals}</td>
             </tr>
           `).join('')}
@@ -825,8 +830,9 @@
           <tr>
             <td colspan="5">รวม ${adTableRows.length} AD</td>
             <td class="num-cell num">${totalStaff} คน</td>
+            <td class="num-cell num">${totalRegistered} คน</td>
+            <td class="num-cell num">${totalStaff > 0 ? pct(totalRegistered, totalStaff) + '%' : '—'}</td>
             <td class="num-cell num">${totalParticipating} คน</td>
-            <td class="num-cell num">${totalStaff > 0 ? pct(totalParticipating, totalStaff) + '%' : '—'}</td>
             <td class="num-cell num">${totalReferrals}</td>
           </tr>
         </tfoot>
