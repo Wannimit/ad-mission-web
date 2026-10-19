@@ -889,7 +889,7 @@
         ${e.atCap
           ? '<span class="pill pill-teal">ถึงเพดาน</span>'
           : e.referralCount > 0
-            ? '<span class="pill pill-lime">ปกติ</span>'
+            ? (e.suspectCount > 0 ? '' : '<span class="pill pill-lime">ปกติ</span>')
             : '<span class="pill pill-muted">ยังไม่เริ่ม</span>'}
       </div>
     `).join('');
