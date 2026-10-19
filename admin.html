@@ -521,6 +521,7 @@
         const cardsEarned = Math.min(Math.floor(referralCount / campaign.pointsPerCard), campaign.maxCardsPerPerson);
         return {
           name: e.name, phone: e.phone, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt,
+          suspectCount: e.suspectCount || 0, // นับจากทุก referral ไม่ผูกกับตัวกรองวันที่
           referralCount, cardsEarned,
           bahtEarned: cardsEarned * campaign.cardValueBaht,
           atCap: referralCount >= campaign.maxReferralsPerPerson,
@@ -776,8 +777,8 @@
 
   function exportEmployees() {
     downloadCsv(`employees_${exportStamp()}.csv`,
-      ['ชื่อ', 'AD (ร้าน)', 'ขนาด AD', 'วันที่ลงทะเบียน', 'จำนวน referral', 'บัตรที่ได้', 'บาท'],
-      lastEmployees.map(e => [e.name, e.adName, e.adSize, String(e.joinedAt || '').slice(0, 10), e.referralCount, e.cardsEarned, e.bahtEarned]));
+      ['ชื่อ', 'AD (ร้าน)', 'ขนาด AD', 'วันที่ลงทะเบียน', 'จำนวน referral', 'บัตรที่ได้', 'บาท', 'ลูกค้าที่ใช้เครื่องซ้ำ (ต้องตรวจ)'],
+      lastEmployees.map(e => [e.name, e.adName, e.adSize, String(e.joinedAt || '').slice(0, 10), e.referralCount, e.cardsEarned, e.bahtEarned, e.suspectCount]));
   }
 
   function renderAdTable(rows) {
@@ -884,6 +885,7 @@
           <div class="lb-sub">${e.adName ? `${e.adName} · ${e.adSize}` : 'ยังไม่มีลูกค้าแนะนำสำเร็จ'}</div>
         </div>
         <div class="lb-count num">${e.referralCount} <span class="unit">reg</span></div>
+        ${e.suspectCount > 0 ? `<span class="pill pill-danger" title="ลูกค้า ${e.suspectCount} ราย ลงทะเบียนจากเครื่องที่ใช้กับบัญชีอื่นด้วย — ตรวจว่าพนักงานใช้มือถือตัวเองลงทะเบียนแทนลูกค้าหรือไม่">ตรวจสอบ: เครื่องซ้ำ ${e.suspectCount}</span>` : ''}
         ${e.atCap
           ? '<span class="pill pill-teal">ถึงเพดาน</span>'
           : e.referralCount > 0
