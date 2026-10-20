@@ -121,6 +121,13 @@
 
   function pct(a, b) { return b > 0 ? Math.round((a / b) * 1000) / 10 : 0; }
   function firstName(fullName) { return fullName.replace(/^คุณ/, '').trim().split(' ')[0]; }
+  // ไม่ส่งชื่อลูกค้ามาแล้ว (คอลัมน์ name ถูกเอาออกจากชีตตั้งใจ) — โชว์วันที่ลงทะเบียนแทน เช่น "21 ต.ค."
+  const TH_MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  function slotLabel(r) {
+    if (r.customerName) return firstName(r.customerName);
+    const p = String(r.submittedAt || '').slice(0, 10).split('-');
+    return p.length === 3 && TH_MONTHS_SHORT[Number(p[1]) - 1] ? `${Number(p[2])} ${TH_MONTHS_SHORT[Number(p[1]) - 1]}` : 'ลูกค้า';
+  }
 
   async function runCheck() {
     const phone = phoneInput.value.replace(/\D/g, '');
@@ -172,7 +179,7 @@
       const complete = pack.length === campaign.pointsPerCard;
       const slots = [];
       for (let i = 0; i < campaign.pointsPerCard; i++) {
-        if (pack[i]) slots.push(`<div class="pack-slot">${firstName(pack[i].customerName)}</div>`);
+        if (pack[i]) slots.push(`<div class="pack-slot">${slotLabel(pack[i])}</div>`);
         else slots.push(`<div class="pack-slot empty">รอคนที่ ${i + 1}</div>`);
       }
       return `
