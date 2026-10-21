@@ -70,8 +70,9 @@
   .filter-check-list label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
   .filter-panel-actions { display: flex; gap: 8px; }
   .filter-panel-actions button {
-    flex: 1; border: none; border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    flex: 1; border: none; border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
   }
+  .filter-btn-clear { background: var(--danger-tint); color: var(--danger-text); }
   .filter-btn-apply { background: var(--ink); color: #fff; }
   .filter-btn-reset { background: var(--track); color: #4A453E; }
   .filter-clear-chip { margin-left: auto; background: var(--danger-tint); color: var(--danger-text); border: none; cursor: pointer; font-family: inherit; }
@@ -171,6 +172,7 @@
         </div>
         <div class="filter-panel-actions">
           <button class="filter-btn-reset" id="dateResetBtn" type="button">รีเซ็ต</button>
+          <button class="filter-btn-clear" id="dateClearBtn" type="button">ล้างการเลือก</button>
           <button class="filter-btn-apply" id="dateApplyBtn" type="button">ใช้ตัวกรอง</button>
         </div>
       </div>
@@ -181,7 +183,30 @@
         <div class="filter-check-list" id="bracketCheckList"></div>
         <div class="filter-panel-actions">
           <button class="filter-btn-reset" id="bracketResetBtn" type="button">เลือกทั้งหมด</button>
+          <button class="filter-btn-clear" id="bracketClearBtn" type="button">ล้างการเลือก</button>
           <button class="filter-btn-apply" id="bracketApplyBtn" type="button">ใช้ตัวกรอง</button>
+        </div>
+      </div>
+    </details>
+    <details class="filter-pop" id="regionFilterPop">
+      <summary class="filter-chip" id="regionChipLabel">ทุกเขต</summary>
+      <div class="filter-panel">
+        <div class="filter-check-list" id="regionCheckList"></div>
+        <div class="filter-panel-actions">
+          <button class="filter-btn-reset" id="regionResetBtn" type="button">เลือกทั้งหมด</button>
+          <button class="filter-btn-clear" id="regionClearBtn" type="button">ล้างการเลือก</button>
+          <button class="filter-btn-apply" id="regionApplyBtn" type="button">ใช้ตัวกรอง</button>
+        </div>
+      </div>
+    </details>
+    <details class="filter-pop" id="centerFilterPop">
+      <summary class="filter-chip" id="centerChipLabel">ทุกศูนย์</summary>
+      <div class="filter-panel">
+        <div class="filter-check-list" id="centerCheckList"></div>
+        <div class="filter-panel-actions">
+          <button class="filter-btn-reset" id="centerResetBtn" type="button">เลือกทั้งหมด</button>
+          <button class="filter-btn-clear" id="centerClearBtn" type="button">ล้างการเลือก</button>
+          <button class="filter-btn-apply" id="centerApplyBtn" type="button">ใช้ตัวกรอง</button>
         </div>
       </div>
     </details>
@@ -191,6 +216,7 @@
         <div class="filter-check-list" id="storeCheckList"></div>
         <div class="filter-panel-actions">
           <button class="filter-btn-reset" id="storeResetBtn" type="button">เลือกทั้งหมด</button>
+          <button class="filter-btn-clear" id="storeClearBtn" type="button">ล้างการเลือก</button>
           <button class="filter-btn-apply" id="storeApplyBtn" type="button">ใช้ตัวกรอง</button>
         </div>
       </div>
@@ -290,9 +316,12 @@
   let allDateMin = null, allDateMax = null; // 'yyyy-mm-dd'
 
   // ตัวกรองที่ใช้งานอยู่ — brackets/stores เป็น null จนกว่าจะรู้รายชื่อทั้งหมดจาก setupFilters()
-  const filters = { from: null, to: null, brackets: null, stores: null };
+  const filters = { from: null, to: null, brackets: null, regions: null, centers: null, stores: null };
   let allBracketSizes = [];
+  let allRegions = [];
+  let allCenters = [];
   let allStoreNames = [];
+  let storeMeta = new Map(); // ชื่อร้าน → { region, center, adSize } จากชีต "ขนาด AD"
 
   function unlockGate() {
     document.getElementById('gate').style.display = 'none';
@@ -413,7 +442,20 @@
       <label><input type="checkbox" class="bracketCheck" value="${size}" ${filters.brackets.has(size) ? 'checked' : ''}> ${size}</label>
     `).join('');
 
-    allStoreNames = Array.from(new Set([...(data.adStores || []).map(s => s.adName), ...data.employees.map(e => e.adName)].filter(Boolean))).sort((a, b) => a.localeCompare(b, 'th'));
+    storeMeta = new Map((data.adStores || []).map(s => [s.adName, { region: s.region || '', center: s.center || '', adSize: s.adSize }]));
+    const uniqSorted = (arr) => Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'th'));
+    allRegions = uniqSorted((data.adStores || []).map(s => s.region));
+    if (filters.regions === null) filters.regions = new Set(allRegions);
+    document.getElementById('regionCheckList').innerHTML = allRegions.map(name => `
+      <label><input type="checkbox" class="regionCheck" value="${name}" ${filters.regions.has(name) ? 'checked' : ''}> ${name}</label>
+    `).join('');
+    allCenters = uniqSorted((data.adStores || []).map(s => s.center));
+    if (filters.centers === null) filters.centers = new Set(allCenters);
+    document.getElementById('centerCheckList').innerHTML = allCenters.map(name => `
+      <label><input type="checkbox" class="centerCheck" value="${name}" ${filters.centers.has(name) ? 'checked' : ''}> ${name}</label>
+    `).join('');
+
+    allStoreNames = uniqSorted([...(data.adStores || []).map(s => s.adName), ...data.employees.map(e => e.adName), ...data.employees.map(e => e.memberStore)]);
     if (filters.stores === null) filters.stores = new Set(allStoreNames);
     document.getElementById('storeCheckList').innerHTML = allStoreNames.map(name => `
       <label><input type="checkbox" class="storeCheck" value="${name}" ${filters.stores.has(name) ? 'checked' : ''}> ${name}</label>
@@ -450,39 +492,44 @@
     applyFiltersAndRender();
   });
 
-  document.getElementById('bracketApplyBtn').addEventListener('click', () => {
-    filters.brackets = new Set(Array.from(document.querySelectorAll('.bracketCheck:checked')).map(el => el.value));
-    closeAllFilterPops();
-    applyFiltersAndRender();
-  });
-  document.getElementById('bracketResetBtn').addEventListener('click', () => {
-    document.querySelectorAll('.bracketCheck').forEach(el => { el.checked = true; });
-    filters.brackets = new Set(allBracketSizes);
-    closeAllFilterPops();
-    applyFiltersAndRender();
+  document.getElementById('dateClearBtn').addEventListener('click', () => {
+    document.getElementById('dateFromInput').value = '';
+    document.getElementById('dateToInput').value = '';
   });
 
-  document.getElementById('storeApplyBtn').addEventListener('click', () => {
-    filters.stores = new Set(Array.from(document.querySelectorAll('.storeCheck:checked')).map(el => el.value));
-    closeAllFilterPops();
-    applyFiltersAndRender();
-  });
-  document.getElementById('storeResetBtn').addEventListener('click', () => {
-    document.querySelectorAll('.storeCheck').forEach(el => { el.checked = true; });
-    filters.stores = new Set(allStoreNames);
-    closeAllFilterPops();
-    applyFiltersAndRender();
+  // Bracket / เขต / ศูนย์ / ร้าน: ใช้ตัวกรอง = เอาที่ติ๊กไว้, เลือกทั้งหมด = ติ๊กหมดแล้วใช้เลย, ล้างการเลือก = เอาติ๊กออกหมด (ยังไม่ใช้ รอให้ติ๊กเฉพาะที่ต้องการก่อนกด "ใช้ตัวกรอง")
+  [
+    { id: 'bracket', cls: '.bracketCheck', key: 'brackets', all: () => allBracketSizes },
+    { id: 'region', cls: '.regionCheck', key: 'regions', all: () => allRegions },
+    { id: 'center', cls: '.centerCheck', key: 'centers', all: () => allCenters },
+    { id: 'store', cls: '.storeCheck', key: 'stores', all: () => allStoreNames },
+  ].forEach(f => {
+    document.getElementById(f.id + 'ApplyBtn').addEventListener('click', () => {
+      filters[f.key] = new Set(Array.from(document.querySelectorAll(f.cls + ':checked')).map(el => el.value));
+      closeAllFilterPops();
+      applyFiltersAndRender();
+    });
+    document.getElementById(f.id + 'ResetBtn').addEventListener('click', () => {
+      document.querySelectorAll(f.cls).forEach(el => { el.checked = true; });
+      filters[f.key] = new Set(f.all());
+      closeAllFilterPops();
+      applyFiltersAndRender();
+    });
+    document.getElementById(f.id + 'ClearBtn').addEventListener('click', () => {
+      document.querySelectorAll(f.cls).forEach(el => { el.checked = false; });
+    });
   });
 
   document.getElementById('clearAllFiltersBtn').addEventListener('click', () => {
     filters.from = null;
     filters.to = null;
     filters.brackets = new Set(allBracketSizes);
+    filters.regions = new Set(allRegions);
+    filters.centers = new Set(allCenters);
     filters.stores = new Set(allStoreNames);
     document.getElementById('dateFromInput').value = allDateMin || '';
     document.getElementById('dateToInput').value = allDateMax || '';
-    document.querySelectorAll('.bracketCheck').forEach(el => { el.checked = true; });
-    document.querySelectorAll('.storeCheck').forEach(el => { el.checked = true; });
+    document.querySelectorAll('.bracketCheck, .regionCheck, .centerCheck, .storeCheck').forEach(el => { el.checked = true; });
     applyFiltersAndRender();
   });
 
@@ -498,21 +545,43 @@
     else if (filters.brackets.size === 1) brChip.textContent = Array.from(filters.brackets)[0];
     else brChip.textContent = `${filters.brackets.size} Bracket`;
 
-    const stChip = document.getElementById('storeChipLabel');
-    if (filters.stores.size === allStoreNames.length) stChip.textContent = 'ทุกร้าน';
-    else if (filters.stores.size === 0) stChip.textContent = 'ไม่มีร้าน';
-    else if (filters.stores.size === 1) stChip.textContent = Array.from(filters.stores)[0];
-    else stChip.textContent = `${filters.stores.size} ร้าน`;
+    const chipLabel = (chipId, set, total, allText, noneText, unit) => {
+      const el = document.getElementById(chipId);
+      if (set.size === total) el.textContent = allText;
+      else if (set.size === 0) el.textContent = noneText;
+      else if (set.size === 1) el.textContent = Array.from(set)[0];
+      else el.textContent = `${set.size} ${unit}`;
+    };
+    chipLabel('regionChipLabel', filters.regions, allRegions.length, 'ทุกเขต', 'ไม่มีเขต', 'เขต');
+    chipLabel('centerChipLabel', filters.centers, allCenters.length, 'ทุกศูนย์', 'ไม่มีศูนย์', 'ศูนย์');
+    chipLabel('storeChipLabel', filters.stores, allStoreNames.length, 'ทุกร้าน', 'ไม่มีร้าน', 'ร้าน');
 
-    const isFiltered = !noFiltered || filters.brackets.size !== allBracketSizes.length || filters.stores.size !== allStoreNames.length;
+    const isFiltered = !noFiltered || filters.brackets.size !== allBracketSizes.length || filters.regions.size !== allRegions.length
+      || filters.centers.size !== allCenters.length || filters.stores.size !== allStoreNames.length;
     document.getElementById('clearAllFiltersBtn').style.display = isFiltered ? '' : 'none';
   }
 
-  // ---- คำนวณ referralCount/cardsEarned ของแต่ละคนใหม่ตามตัวกรอง (ช่วงวันที่ + bracket + ร้าน) ----
+  // ร้านนี้ผ่านตัวกรอง ร้าน + เขต + ศูนย์ ไหม (ถ้าเลือกเขต/ศูนย์ครบทุกค่า = ไม่กรอง)
+  function storePasses(storeName) {
+    if (!storeName) return true;
+    if (!filters.stores.has(storeName)) return false;
+    const m = storeMeta.get(storeName);
+    if (filters.regions.size !== allRegions.length && !(m && filters.regions.has(m.region))) return false;
+    if (filters.centers.size !== allCenters.length && !(m && filters.centers.has(m.center))) return false;
+    return true;
+  }
+
+  // ---- คำนวณ referralCount/cardsEarned ของแต่ละคนใหม่ตามตัวกรอง (ช่วงวันที่ + bracket + เขต + ศูนย์ + ร้าน) ----
+  // พนักงานจัดเข้าร้านตามร้านที่ลงทะเบียนไว้ (memberStore) ถ้าไม่มีใช้ AD จาก referral
   function computeFilteredEmployees() {
     const campaign = rawData.campaign;
     return rawData.employees
-      .filter(e => (e.adSize == null || filters.brackets.has(e.adSize)) && (e.adName == null || filters.stores.has(e.adName)))
+      .filter(e => {
+        const store = e.memberStore || e.adName;
+        const meta = store ? storeMeta.get(store) : null;
+        const size = e.adSize != null ? e.adSize : (meta ? meta.adSize : null);
+        return (size == null || filters.brackets.has(size)) && storePasses(store);
+      })
       .map(e => {
         const days = e.referrals
           .map(ts => String(ts).slice(0, 10))
@@ -520,7 +589,7 @@
         const referralCount = days.length;
         const cardsEarned = Math.min(Math.floor(referralCount / campaign.pointsPerCard), campaign.maxCardsPerPerson);
         return {
-          name: e.name, phone: e.phone, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt,
+          name: e.name, phone: e.phone, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt, memberStore: e.memberStore,
           suspectCount: e.suspectCount || 0, // นับจากทุก referral ไม่ผูกกับตัวกรองวันที่
           referralCount, cardsEarned,
           bahtEarned: cardsEarned * campaign.cardValueBaht,
@@ -570,7 +639,7 @@
   function buildAdTable(employees) {
     const byAd = new Map();
     (rawData.adStores || [])
-      .filter(s => (s.adSize == null || filters.brackets.has(s.adSize)) && filters.stores.has(s.adName))
+      .filter(s => (s.adSize == null || filters.brackets.has(s.adSize)) && storePasses(s.adName))
       .forEach(s => byAd.set(s.adName, { adName: s.adName, adSize: s.adSize, participating: 0, totalReferrals: 0 }));
     employees.filter(e => e.adName && e.referralCount > 0).forEach(e => {
       if (!byAd.has(e.adName)) byAd.set(e.adName, { adName: e.adName, adSize: e.adSize, participating: 0, totalReferrals: 0 });

@@ -498,6 +498,7 @@ function buildAdminSummary(role) {
     return {
       name: s.name,
       phone: s.phone, // เบอร์โทรพนักงาน — แสดงเฉพาะหน้า admin (ต้องผ่านรหัสผ่านแล้วเท่านั้น)
+      memberStore: s.memberStore, // ร้านที่ลงทะเบียนไว้ — หน้า admin ใช้กรองตามเขต/ศูนย์/ร้านให้พนักงานที่ยังไม่มี referral ด้วย
       adName: s.adName,
       adSize: s.adSize,
       joinedAt: s.joinedAt, // วันที่ลงทะเบียนเข้าร่วม (จากชีต "พนักงานที่เข้าร่วม") — ใช้ทำกราฟแท่งรายวัน
