@@ -26,6 +26,8 @@ const SHEET_MEMBERS = 'พนักงานที่เข้าร่วม';
 const SHEET_AD_SIZE = 'ขนาด AD';
 const SHEET_ADMIN = 'Admin';
 const SHEET_STAMPS = 'บัตรที่แจกแล้ว';
+const SHEET_UUID = 'UUID';
+const SHEET_SUSPECT = 'Suspect';
 
 const CAMPAIGN = {
   pointsPerCard: 4,   // ทุก 4 คนที่แนะนำสำเร็จ = 1 บัตร
@@ -57,7 +59,7 @@ function doGet(e) {
       if (!role) return jsonOut_({ error: 'UNAUTHORIZED' });
       if (role.denied) return jsonOut_({ error: 'NO_ACCESS' });
       if (role.regions) return jsonOut_({ error: 'FORBIDDEN' }); // user ระดับเขตสั่งแสตมป์ไม่ได้
-      return jsonOut_(autoStampNewCards_(loadAll_()));
+      return jsonOut_(runStampAndSuspect());
     }
     return jsonOut_({ error: 'INVALID_MODE' });
   } catch (err) {
@@ -93,11 +95,52 @@ function formatDate_(v) {
   return String(v || '');
 }
 
+// ---------- ตรวจว่าลูกค้าลงทะเบียนจากเครื่องของพนักงานเองหรือไม่ ----------
+// ชีต "UUID": kubota_id_UUID | device_id | submitted_at — device_id คือ JSON array ของ token เครื่องที่ใช้ลงทะเบียน
+// 1 เครื่องควรเป็นของลูกค้า 1 คน ถ้า token เดียวกันโผล่กับหลาย kubota_id แปลว่าเครื่องเดียวลงทะเบียนหลายบัญชี (น่าจะเป็นเครื่องพนักงาน)
+// คืน { kubota_id: true } ของทุกบัญชีที่ใช้เครื่องร่วมกับบัญชีอื่น — ไม่มีชีตนี้ก็ไม่ทำให้ระบบพัง (ไม่ติดธงใคร)
+function parseDeviceTokens_(v) {
+  const s = String(v || '').trim();
+  if (!s) return [];
+  try {
+    const a = JSON.parse(s);
+    if (Array.isArray(a)) return a.filter(function (t) { return typeof t === 'string' && t; });
+  } catch (e) {}
+  return [];
+}
+
+function readDeviceMap_() {
+  const idToTokens = {};
+  const tokenToIds = {};
+  let rows;
+  try { rows = readSheetAsObjects_(SHEET_UUID); } catch (e) { return { idToTokens: idToTokens, tokenToIds: tokenToIds }; }
+  rows.forEach(function (r) {
+    const id = String(r['kubota_id_UUID'] || '').trim();
+    if (!id) return;
+    const tokens = parseDeviceTokens_(r['device_id']);
+    idToTokens[id] = tokens;
+    tokens.forEach(function (t) { (tokenToIds[t] = tokenToIds[t] || {})[id] = true; });
+  });
+  return { idToTokens: idToTokens, tokenToIds: tokenToIds };
+}
+
+function readSharedDeviceIds_() {
+  const tokenToIds = readDeviceMap_().tokenToIds;
+  const shared = {};
+  Object.keys(tokenToIds).forEach(function (t) {
+    const ids = Object.keys(tokenToIds[t]);
+    if (ids.length > 1) ids.forEach(function (id) { shared[id] = true; });
+  });
+  return shared;
+}
+
 function loadAll_() {
+  const sharedDeviceIds = readSharedDeviceIds_();
   const registrations = readSheetAsObjects_(SHEET_REGISTRATIONS)
     .map(function (r) {
       return {
         kubotaId: String(r['kubota_id'] || '').trim(),
+        sharedDevice: !!sharedDeviceIds[String(r['kubota_id'] || '').trim()], // เครื่องที่ลงทะเบียนถูกใช้กับบัญชีอื่นด้วย
         customerName: r['name'],
         submittedAt: formatDate_(r['submitted_at']),
         referrerPhone: String(r['comment_care'] || '').replace(/\D/g, ''), // เบอร์โทรของช่างผู้แนะนำ
@@ -241,6 +284,7 @@ function buildEmployeeSummaries_(data, stamps) {
       adName: s.adName,
       adSize: s.adSize,
       referrals: s.referrals,
+      suspectCount: s.referrals.filter(function (r) { return r.sharedDevice; }).length, // ลูกค้าที่ใช้เครื่องซ้ำกับบัญชีอื่น — ให้ Admin ตรวจ ยังไม่หักออกจากยอด
       referralCount: count,
       cardsEarned: cardsEarned,
       bahtEarned: cardsEarned * CAMPAIGN.cardValueBaht,
@@ -294,7 +338,94 @@ function autoStampNewCards_(data) {
     sheet.getRange(startRow, 6, cardNumbersToAppend.length, 1).setValues(cardNumbersToAppend.map(function (n) { return [n]; }));
   }
 
+  // คอลัมน์ G: "ปกติ" / "suspect" ต่อแถว — suspect = ช่างคนนั้นมีลูกค้าที่ลงทะเบียนจากเครื่องซ้ำกับบัญชีอื่น (ดู readSharedDeviceIds_)
+  // ติดธงอย่างเดียว ไม่ได้ระงับการแสตมป์ (แสตมป์ไปก่อนตามที่ user สั่ง) เขียนทับทุกครั้งเพราะธงเปลี่ยนได้ตามข้อมูลใหม่
+  const totalRows = existing.length + phonesToAppend.length;
+  if (totalRows > 0) {
+    const suspectPhones = {};
+    summaries.forEach(function (s) { if (s.suspectCount > 0) suspectPhones[s.phone] = true; });
+    const phones = sheet.getRange(2, 1, totalRows, 1).getDisplayValues();
+    sheet.getRange(1, 7).setValue('สถานะ');
+    sheet.getRange(2, 7, totalRows, 1).setValues(phones.map(function (r) {
+      return [suspectPhones[String(r[0]).replace(/\D/g, '')] ? 'suspect' : 'ปกติ'];
+    }));
+  }
+
   return { added: phonesToAppend.length };
+}
+
+// ---------- ชีต "Suspect": ลูกค้าที่ลงทะเบียนจากเครื่องที่ใช้กับบัญชีอื่นด้วย พร้อมพนักงานที่แนะนำและ device_id ----------
+// สร้างชีตถ้ายังไม่มี และเขียนทับทั้งชีตทุกครั้ง (เป็นรายงานที่คำนวณใหม่จากข้อมูลล่าสุด ไม่ใช่ข้อมูลที่ต้องแก้มือ)
+function syncSuspectSheet_(data) {
+  const dm = readDeviceMap_();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_SUSPECT);
+  if (!sheet) sheet = ss.insertSheet(SHEET_SUSPECT);
+
+  const memberByPhone = {};
+  data.members.forEach(function (m) { memberByPhone[m.phone] = m; });
+  const refById = {};
+  data.registrations.forEach(function (r) { if (memberByPhone[r.referrerPhone]) refById[r.kubotaId] = r; });
+
+  const rows = [];
+  data.registrations.forEach(function (r) {
+    const m = memberByPhone[r.referrerPhone];
+    if (!m) return;
+    (dm.idToTokens[r.kubotaId] || []).forEach(function (t) {
+      const ids = Object.keys(dm.tokenToIds[t] || {});
+      if (ids.length < 2) return;
+      const others = ids.filter(function (id) { return id !== r.kubotaId; }).map(function (id) {
+        const o = refById[id];
+        return id + (o ? ' (' + ((memberByPhone[o.referrerPhone] || {}).name || o.referrerPhone) + ')' : ' (ไม่ได้อยู่ในยอดแนะนำ)');
+      });
+      rows.push([m.name, r.referrerPhone, r.adName, r.adSize, r.kubotaId, r.customerName, r.submittedAt, t, ids.length, others.join('; ')]);
+    });
+  });
+  rows.sort(function (a, b) { return a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : a[7] < b[7] ? -1 : a[7] > b[7] ? 1 : a[6] < b[6] ? -1 : 1; });
+
+  const header = ['ชื่อพนักงาน', 'เบอร์พนักงาน', 'AD (ร้าน)', 'ขนาด AD', 'kubota_id (ลูกค้าที่แนะนำ)', 'ชื่อลูกค้า', 'วันที่ลงทะเบียน', 'device_id', 'จำนวนบัญชีที่ใช้เครื่องนี้', 'kubota_id อื่นที่ใช้เครื่องเดียวกัน (พนักงานที่แนะนำ)'];
+  sheet.clearContents();
+  // เบอร์/kubota_id เป็นข้อความ กัน Sheets ตัดเลข 0 นำหน้า
+  sheet.getRange(1, 2, rows.length + 1, 1).setNumberFormat('@');
+  sheet.getRange(1, 5, rows.length + 1, 1).setNumberFormat('@');
+  sheet.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+  if (rows.length > 0) sheet.getRange(2, 1, rows.length, header.length).setValues(rows);
+  sheet.setFrozenRows(1);
+
+  const employees = {};
+  rows.forEach(function (r) { employees[r[1]] = true; });
+  return { rows: rows.length, employees: Object.keys(employees).length };
+}
+
+// เรียกจาก editor (Run) หรือ mode=stamp: แสตมป์บัตรที่ครบแล้ว + อัปเดตธงคอลัมน์ G + สร้าง/อัปเดตชีต Suspect
+function runStampAndSuspect() {
+  const data = loadAll_();
+  const stamp = autoStampNewCards_(data);
+  const suspect = syncSuspectSheet_(data);
+  return { added: stamp.added, suspect: suspect };
+}
+
+// ---------- อัปเดตชีต Suspect + ธง G อัตโนมัติเมื่อมีการแก้ไข/วางข้อมูลในชีต "ผลการสมัคร" หรือ "UUID" ----------
+// ต้องตั้งเป็น installable trigger (Triggers > Add Trigger > onEditRefreshSuspect > From spreadsheet > On edit)
+// การแก้ไขจากสคริปต์ (เช่น ตอน runStampAndSuspect เขียนชีต Suspect/บัตรที่แจกแล้ว) ไม่ทำให้ onEdit ทำงานซ้ำ จึงไม่วนลูป
+// กันรันถี่: รอให้การวางต่อเนื่องจบก่อน — ถ้ามีการแก้ไขใหม่กว่าระหว่างรอ รอบเก่าจะออกไปเฉยๆ ให้รอบใหม่เป็นคนรันแทน (รันครั้งเดียวต่อชุดการแก้ไข)
+const AUTO_SUSPECT_SHEETS = [SHEET_REGISTRATIONS, SHEET_UUID];
+const AUTO_SUSPECT_WAIT_MS = 15000;
+
+function onEditRefreshSuspect(e) {
+  if (!e || !e.range || AUTO_SUSPECT_SHEETS.indexOf(e.range.getSheet().getName()) < 0) return;
+  const props = PropertiesService.getScriptProperties();
+  const stamp = Date.now() + '-' + Math.random(); // ต่อค่าสุ่มกัน event ที่เกิดในมิลลิวินาทีเดียวกันได้ตราเท่ากัน
+  props.setProperty('SUSPECT_EDIT_AT', stamp);
+  Utilities.sleep(AUTO_SUSPECT_WAIT_MS);
+  if (props.getProperty('SUSPECT_EDIT_AT') !== stamp) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return; // มีรอบอื่นกำลังรันอยู่ — รอบนั้นอ่านข้อมูลล่าสุดอยู่แล้ว
+  try {
+    runStampAndSuspect();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function buildBracketSummaries_(data, employeeSummaries, stamps) {
@@ -326,7 +457,9 @@ function buildPersonalSummary(phone) {
   autoStampNewCards_(data); // ใครครบ 4 คนใหม่ก็บันทึกลง "บัตรที่แจกแล้ว" ทันทีตอนเช็ก
   const stamps = readStamps_();
   const summaries = buildEmployeeSummaries_(data, stamps);
-  const me = summaries.filter(function (s) { return s.name === member.name; })[0];
+  // จับคู่ด้วยเบอร์ ไม่ใช่ชื่อ — เบอร์เดียวกันที่ลงทะเบียนหลายแถวด้วยชื่อต่างกัน summaries เก็บชื่อจากแถวล่าสุด แต่ member ด้านบนเป็นแถวแรก ชื่อไม่ตรงกันทำให้ me เป็น undefined
+  const me = summaries.filter(function (s) { return s.phone === phone; })[0];
+  if (!me) return { error: 'NOT_FOUND' };
   const brackets = buildBracketSummaries_(data, summaries, stamps);
   const myBracket = brackets.filter(function (b) { return b.size === me.adSize; })[0];
 
@@ -415,31 +548,6 @@ function fetchExcelTableRows_() {
   });
 }
 
-// ---------- Sync จริง: เพิ่มเฉพาะแถวใหม่เข้าชีต "ผลการสมัคร" (กันซ้ำด้วย registration_no) ----------
-function syncRegistrationsFromExcelOnline() {
-  const sourceRows = fetchExcelTableRows_();
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGISTRATIONS);
-  if (!sheet) throw new Error('ไม่พบแผ่นงาน: ' + SHEET_REGISTRATIONS);
-
-  const existing = readSheetAsObjects_(SHEET_REGISTRATIONS);
-  const existingKeys = new Set(existing.map(function (r) { return String(r['registration_no'] || ''); }));
-
-  // เขียนแค่ A-G เท่านั้น — คอลัมน์ H (AD) และ I (AD_Size) เป็นสูตร ARRAYFORMULA ที่ lookup
-  // จาก comment_care (E) เองอัตโนมัติอยู่แล้ว (ดูคอลัมน์ H/I ในชีต) ถ้าเขียนทับตรงนี้ด้วย
-  // จะไปโดนช่วง spill ของสูตร ทำให้สูตรพัง (#REF!) และค่าที่เขียนก็สลับคอลัมน์กันด้วย (บั๊กเดิม)
-  const headers = ['kubota_id', 'registration_no', 'name', 'submitted_at', 'comment_care',
-    'suggestion_care', 'submitted_at_care'];
-
-  const newRows = sourceRows
-    .filter(function (r) { return !existingKeys.has(String(r['registration_no'] || '')); })
-    .map(function (r) { return headers.map(function (h) { return r[h] !== undefined ? r[h] : ''; }); });
-
-  if (newRows.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
-  }
-  return { added: newRows.length };
-}
-
 // เบอร์โทรซ้ำนับเป็นคนเดียว (ถ้าลงทะเบียนหลายแถว ใช้ร้านจากแถวล่าสุด ตรงกับที่ buildEmployeeSummaries_ จับคู่ด้วยเบอร์) — แถวที่ไม่มีเบอร์แยกไม่ได้ จึงนับเป็นรายแถว
 function uniqueMembersByPhone_(members) {
   const byPhone = {};
@@ -503,6 +611,7 @@ function buildAdminSummary(role) {
       adSize: s.adSize,
       joinedAt: s.joinedAt, // วันที่ลงทะเบียนเข้าร่วม (จากชีต "พนักงานที่เข้าร่วม") — ใช้ทำกราฟแท่งรายวัน
       referrals: s.referrals.map(function (r) { return r.submittedAt; }),
+      suspectCount: s.suspectCount,
     };
   });
 
