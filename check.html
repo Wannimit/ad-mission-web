@@ -217,6 +217,7 @@
         </div>
 
         <div class="rg-customers">
+          ${summary.excludedCount > 0 ? `<div class="card warn" style="padding:14px 18px; margin-bottom:12px; font-size:13.5px; line-height:1.6;">มี ${summary.excludedCount} รายการที่ไม่ถูกนับเป็นยอดแนะนำ เนื่องจากตรวจพบว่ามีการลงทะเบียนซ้ำซ้อนหรือใช้เครื่องร่วมกับบัญชีอื่น หากต้องการสอบถามรายละเอียด กรุณาติดต่อผู้ดูแลโครงการ</div>` : ''}
           <div class="section-title" style="margin-top:0;">ลูกค้าที่คุณแนะนำสำเร็จ</div>
           ${count === 0 ? `<div class="card dashed" style="padding:18px 20px; font-size:14.5px; color:var(--muted);">ยังไม่มีลูกค้าที่แนะนำสำเร็จในระบบ</div>` : `<div class="stack">${packsHtml}</div>`}
         </div>
