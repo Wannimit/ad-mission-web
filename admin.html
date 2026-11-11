@@ -67,6 +67,9 @@
   .filter-panel .date-row label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
   .filter-panel input[type="date"] { border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-family: inherit; font-size: 13px; }
   .filter-check-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .filter-search { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 13px; margin-bottom: 8px; background: #fff; }
+  .filter-search:focus { outline: none; border-color: var(--orange); }
+  .filter-search-empty { font-size: 12.5px; color: var(--muted); padding: 4px 2px 12px; }
   .filter-check-list label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
   .filter-panel-actions { display: flex; gap: 8px; }
   .filter-panel-actions button {
@@ -182,7 +185,7 @@
   <a href="#sec-register" data-sec="sec-register"><span class="dot"></span><span class="label">ยอด Register รายวัน</span></a>
   <a href="#sec-signup" data-sec="sec-signup"><span class="dot"></span><span class="label">พนักงานที่เข้าร่วม รายวัน</span></a>
   <a href="#sec-ad" data-sec="sec-ad"><span class="dot"></span><span class="label">พนักงานที่เข้าร่วมแยกตาม AD</span></a>
-  <a href="#sec-top" data-sec="sec-top"><span class="dot"></span><span class="label">ช่างผลงานดีที่สุด</span></a>
+  <a href="#sec-top" data-sec="sec-top"><span class="dot"></span><span class="label">พนักงานผลงานดีที่สุด</span></a>
 </nav>
 <div class="content">
 
@@ -318,7 +321,7 @@
     <div id="adTable"></div>
   </div>
 
-  <div class="section-title" id="sec-top">ช่างผลงานดีที่สุด</div>
+  <div class="section-title" id="sec-top">พนักงานผลงานดีที่สุด</div>
   <div class="card" style="padding:22px;">
     <div class="section-sub" style="margin-top:0;">เรียงตามยอดลูกค้าที่แนะนำสำเร็จสะสม — ไม่มีโบนัส Top performer ในกิจกรรมนี้</div>
     <div id="leaderboard"></div>
@@ -529,11 +532,48 @@
     document.getElementById('storeCheckList').innerHTML = allStoreNames.map(name => `
       <label><input type="checkbox" class="storeCheck" value="${name}" ${filters.stores.has(name) ? 'checked' : ''}> ${name}</label>
     `).join('');
+    FILTER_LIST_IDS.forEach(applyListSearch); // รายการถูกวาดใหม่ (เช่นตอนรีเฟรช) → ใช้คำค้นเดิมซ้ำ
   }
 
   function closeAllFilterPops() {
     document.querySelectorAll('.filter-pop[open]').forEach(det => det.removeAttribute('open'));
   }
+
+  // ---- ช่องค้นหาในตัวกรอง Bracket / เขต / ศูนย์ / ร้าน: พิมพ์แล้วซ่อนรายการที่ไม่ตรง (ค่าที่ติ๊กไว้ไม่เปลี่ยน) ----
+  const FILTER_LIST_IDS = ['bracketCheckList', 'regionCheckList', 'centerCheckList', 'storeCheckList'];
+  function applyListSearch(listId) {
+    const list = document.getElementById(listId);
+    const input = list.parentElement.querySelector('.filter-search');
+    const empty = list.parentElement.querySelector('.filter-search-empty');
+    const q = (input.value || '').trim().toLowerCase();
+    let shown = 0;
+    list.querySelectorAll('label').forEach(lb => {
+      const hit = !q || lb.textContent.toLowerCase().includes(q);
+      lb.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    empty.style.display = (q && shown === 0) ? '' : 'none';
+  }
+  FILTER_LIST_IDS.forEach(listId => {
+    const list = document.getElementById(listId);
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.className = 'filter-search';
+    input.placeholder = 'ค้นหา...';
+    input.autocomplete = 'off';
+    input.addEventListener('input', () => applyListSearch(listId));
+    const empty = document.createElement('div');
+    empty.className = 'filter-search-empty';
+    empty.textContent = 'ไม่พบรายการที่ค้นหา';
+    empty.style.display = 'none';
+    list.parentElement.insertBefore(input, list);
+    list.parentElement.insertBefore(empty, list.nextSibling);
+    const det = list.closest('details');
+    det.addEventListener('toggle', () => {
+      if (det.open) setTimeout(() => input.focus(), 0);   // เปิดแล้วพิมพ์ค้นหาได้ทันที
+      else { input.value = ''; applyListSearch(listId); } // ปิดแล้วล้างคำค้น
+    });
+  });
 
   document.querySelectorAll('.filter-pop').forEach(det => {
     det.addEventListener('toggle', () => {
@@ -658,7 +698,7 @@
         const referralCount = days.length;
         const cardsEarned = Math.min(Math.floor(referralCount / campaign.pointsPerCard), campaign.maxCardsPerPerson);
         return {
-          name: e.name, phone: e.phone, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt, memberStore: e.memberStore,
+          name: e.name, phone: e.phone, adName: e.adName, adSize: e.adSize, joinedAt: e.joinedAt, memberStore: e.memberStore, branch: e.branch,
           suspectCount: e.suspectCount || 0, // นับจากทุก referral ไม่ผูกกับตัวกรองวันที่
           excludedCount: e.excludedCount || 0, // รายการที่ถูกตัดออกจากยอด (ชีต "ตัดออก")
           referralCount, cardsEarned,
@@ -917,8 +957,8 @@
 
   function exportEmployees() {
     downloadCsv(`employees_${exportStamp()}.csv`,
-      ['ชื่อ', 'AD (ร้าน)', 'ขนาด AD', 'วันที่ลงทะเบียน', 'จำนวน referral', 'บัตรที่ได้', 'บาท', 'ลูกค้าที่ใช้เครื่องซ้ำ (ต้องตรวจ)'],
-      lastEmployees.map(e => [e.name, e.adName, e.adSize, String(e.joinedAt || '').slice(0, 10), e.referralCount, e.cardsEarned, e.bahtEarned, e.suspectCount]));
+      ['ชื่อ', 'สาขา', 'AD (ร้าน)', 'ขนาด AD', 'วันที่สมัคร', 'จำนวน referral', 'บัตรที่ได้', 'บาท', 'ลูกค้าที่ใช้เครื่องซ้ำ (ต้องตรวจ)'],
+      lastEmployees.map(e => [e.name, e.branch, e.adName, e.adSize, String(e.joinedAt || '').slice(0, 10), e.referralCount, e.cardsEarned, e.bahtEarned, e.suspectCount]));
   }
 
   function renderAdTable(rows) {
